@@ -8,7 +8,7 @@ class PeliTila():
             ["--", "--", "--", "--", "--", "--", "--", "--"],
             ["--", "--", "--", "--", "--", "--", "--", "--"],
             ["--", "--", "--", "--", "--", "--", "--", "--"],
-            ["--", "--", "--", "bp", "--", "--", "--", "--"],
+            ["--", "--", "--", "--", "--", "--", "--", "--"],
             ["wp", "wp", "wp", "wp", "wp", "wp", "wp", "wp"],
             ["wR", "wN", "wB", "wQ", "wK", "wB", "wN", "wR"]]
         self.siirtoFunktiot = {'p': self.haeSotilasSiirrot, 'R': self.haeTorninSiirrot, 'N': self.haeHevosenSiirrot,
@@ -44,6 +44,7 @@ class PeliTila():
         return siirrot
 
     def haeSotilasSiirrot(self, r, l, siirrot):
+
         if self.valkoisenSiirto: #Valkoisen siirrot
             if self.lauta[r-1][l] == "--":
                 siirrot.append(Siirto((r, l), (r-1, l), self.lauta))
@@ -56,21 +57,91 @@ class PeliTila():
                 if self.lauta[r-1][l+1][0] == 'b':
                     siirrot.append(Siirto((r, l),(r-1, l+1), self.lauta))
 
+        else: # Mustan Siirrot
+            if self.lauta[r + 1][l] == "--": #Yhden ruudun siirto
+                siirrot.append(Siirto((r, l), (r+1, l), self.lauta))
+                if r == 1 and self.lauta[r + 2][l] == "--": #Kahden ruudun siirto
+                    siirrot.append(Siirto((r, l),(r+2, l), self.lauta))
+                #Syönnit
+                if l - 1 >= 0:
+                    if self.lauta[r + 1][l-1][0] == 'w': #Syönti Vase
+                        siirrot.append(Siirto((r, l),(r +1, l - 1), self.lauta))
+                    if l + 1 <= 7: # Syönti oikea
+                        if self.lauta[r + 1][l + 1][0] == 'w':
+                            siirrot.append(Siirto((r, l),(r + 1, l + 1), self.lauta))
+        # pitää lisätä sotilaan promo kuningattareksi yms.
+
+
 
 
     def haeTorninSiirrot(self, r, l, siirrot):
-        pass
+        suunnat = ((-1, 0), (0, -1), (1, 0), (0, 1))
+        vastustajanVari = "b" if self.valkoisenSiirto else "w"
+        for s in suunnat:
+            for i in range(1, 8):
+                lopetusRivi = r + s[0] * i
+                lopetusLinja = l + s[1] * i
+                if 0 <= lopetusRivi < 8 and 0 <= lopetusLinja < 8:
+                    lopetusRuutu = self.lauta[lopetusRivi][lopetusLinja]
+                    if lopetusRuutu == "--":
+                        siirrot.append(Siirto((r, l), (lopetusRivi, lopetusLinja), self.lauta))
+                    elif lopetusRuutu[0] == vastustajanVari:
+                        siirrot.append(Siirto((r, l), (lopetusRivi, lopetusLinja), self.lauta))
+                        break
+                    else:
+                        break
+                else:
+                    break
+
+
+
 
     def haeLahettiSiirrot(self, r, l, siirrot):
-        pass
+        suunnat = ((-1, -1), (-1, 1), (1, -1), (1, 1))
+        vastustajanVari = "b" if self.valkoisenSiirto else "w"
+        for s in suunnat:
+            for i in range(1, 8):
+                lopetusRivi = r + s[0] * i
+                lopetusLinja = l + s[1] * i
+                if 0 <= lopetusRivi < 8 and 0 <= lopetusLinja < 8:
+                    lopetusRuutu = self.lauta[lopetusRivi][lopetusLinja]
+                    if lopetusRuutu == "--":
+                        siirrot.append(Siirto((r, l), (lopetusRivi, lopetusLinja), self.lauta))
+                    elif lopetusRuutu[0] == vastustajanVari:
+                        siirrot.append(Siirto((r, l), (lopetusRivi, lopetusLinja), self.lauta))
+                        break
+                    else:
+                        break
+                else:
+                    break
+
 
     def haeHevosenSiirrot(self, r, l, siirrot):
-        pass
+        hevosenSuunnat = ((-2, -1), (-2, 1), (-1, -2), (-1, 2), (1, -2), (1, 2), (2, -1), (2, 1))
+        omaVari = "w" if self.valkoisenSiirto else "b"
+        for s in hevosenSuunnat:
+            lopetusRivi = r + s[0]
+            lopetusLinja = l + s[1]
+            if 0 <= lopetusRivi < 8 and 0 <= lopetusLinja < 8:
+                lopetusRuutu = self.lauta[lopetusRivi][lopetusLinja]
+                if lopetusRuutu[0] != omaVari:
+                    siirrot.append(Siirto((r, l), (lopetusRivi, lopetusLinja), self.lauta))
 
     def haeKuningatarSiirrot(self, r, l, siirrot):
-        pass
+        self.haeLahettiSiirrot(r, l, siirrot)
+        self.haeTorninSiirrot(r, l, siirrot)
+
     def haeKuningasSiirrot(self, r, l, siirrot):
-        pass
+        kuningasSuunnat = ((-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1))
+        omaVari = "w" if self.valkoisenSiirto else "b"
+        for i in range(8):
+            lopetusRivi = r + kuningasSuunnat[i][0]
+            lopetusLinja = l + kuningasSuunnat[i][1]
+            if 0 <= lopetusRivi < 8 and 0 <= lopetusLinja < 8:
+                lopetusRuutu = self.lauta[lopetusRivi][lopetusLinja]
+                if lopetusRuutu[0] != omaVari:
+                    siirrot.append(Siirto((r, l), (lopetusRivi, lopetusLinja), self.lauta))
+
 
 
 class Siirto():

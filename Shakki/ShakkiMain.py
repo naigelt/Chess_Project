@@ -26,6 +26,7 @@ def main():
     kaynnissa = True
     valittuRuutu = () #Pitää kirjaa mihin pelaaja clikkasi viimeksi. tuple (rivi, linja)
     pelaajaKlikit = [] #Pitää kirjaa pelaajan klikeistä[(4,4), (3,4)]
+
     while kaynnissa:
         for e in p.event.get():
             if e.type == p.QUIT:
@@ -47,7 +48,7 @@ def main():
                     print(siirto.haeShakkiNotaatio())
                     if siirto in laillisetSiirrot:
                         pelitila.teeSiirto(siirto)
-                        siirto = True
+                        siirtoTehty = True
                     valittuRuutu = () # Resettaa klikit
                     pelaajaKlikit = []
 
@@ -61,7 +62,7 @@ def main():
             laillisetSiirrot = pelitila.haeLaillisetSiirrot()
             siirtoTehty = False
 
-        piirraPeliTila(screen,pelitila)
+        piirraPeliTila(screen, pelitila)
         kello.tick(MAX_FPS)
         p.display.flip()
 
