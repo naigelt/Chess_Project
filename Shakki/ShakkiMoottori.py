@@ -16,12 +16,22 @@ class PeliTila():
 
         self.valkoisenSiirto = True
         self.siirtoLokikirja = []
+        self.valkoisenKuninkaanSijainti = (7, 4)
+        self.mustanKuninkaanSijainti = (0,4)
+        self.shakkiMatti = False
+        self.pattitilanne = False
 
     def teeSiirto(self, siirto):
         self.lauta[siirto.aloitusRivi][siirto.aloitusLinja] = "--"
         self.lauta[siirto.lopetusRivi][siirto.lopetusLinja] = siirto.siirrettyNappula
         self.siirtoLokikirja.append(siirto) #lisää siirron siirtoLokikirjaan.
         self.valkoisenSiirto = not self.valkoisenSiirto #vaihtaa vuoroa.
+        # Päivitetään kuninkaan sijainti, jos sitä on siirretty
+        if siirto.siirrettyNappula == 'wK':
+            self.valkoisenKuninkaanSijainti = (siirto.lopetusRivi, siirto.lopetusLinja)
+        elif siirto.siirrettyNappula == 'bK':
+            self.mustanKuninkaanSijainti = (siirto.lopetusRivi, siirto.lopetusLinja)
+
 
     def kumoaSiirto(self):
         if len(self.siirtoLokikirja) != 0:
@@ -29,9 +39,58 @@ class PeliTila():
             self.lauta[siirto.aloitusRivi][siirto.aloitusLinja] = siirto.siirrettyNappula
             self.lauta[siirto.lopetusRivi][siirto.lopetusLinja] = siirto.syotyNappula
             self.valkoisenSiirto = not self.valkoisenSiirto
+            # Päivitä kuninkaan sijainti tarvittaessa
+            if siirto.siirrettyNappula == 'wK':
+                self.valkoisenKuninkaanSijainti = (siirto.aloitusRivi, siirto.aloitusLinja)
+            elif siirto.siirrettyNappula == 'bK':
+                self.mustanKuninkaanSijainti = (siirto.aloitusRivi, siirto.aloitusLinja)
+
 
     def haeLaillisetSiirrot(self):
-        return self.haeKaikkiSiirrot()
+        # 1) Generoidaan kaikki mahdolliset siirrot
+        siirrot = self.haeKaikkiSiirrot()
+        # 2) Tee jokainen mahdollinen siirto
+        for i in range(len(siirrot)-1, -1, -1): # Lista käydään läpi takaperin bugien välttämiseksi
+            self.teeSiirto(siirrot[i])
+            # 3) Generoidaan jokainen vastustajan mahdollinen siirto
+            # 4) Tarkista jokaisen vastustajan siirto ja hyökkääkö hän kuningastasi kohti
+            self.valkoisenSiirto = not self.valkoisenSiirto
+            if self.shakissa():
+                siirrot.remove(siirrot[i]) # 5) Jos he hyökkäävät kuningasta vastaan, se ei ole validi siirto
+            self.valkoisenSiirto = not self.valkoisenSiirto
+            self.kumoaSiirto()
+        if len(siirrot) == 0: # Joko shakkimatti tai pattitilanne
+            if self.shakissa():
+                self.shakkiMatti = True
+            else:
+                self.pattitilanne = True
+        else:
+            self.shakkiMatti = False
+            self.pattitilanne = False
+
+        return siirrot
+
+    '''
+    Tutkitaan onko tämänhetkinen pelaaja shakissa
+    '''
+    def shakissa(self):
+        if self.valkoisenSiirto:
+            return self.ruutuHyökkäyksenAlaisena(self.valkoisenKuninkaanSijainti[0], self.valkoisenKuninkaanSijainti[1])
+        else:
+            return self.ruutuHyökkäyksenAlaisena(self.mustanKuninkaanSijainti[0], self.mustanKuninkaanSijainti[1])
+
+    '''
+    Tutkitaan voiko vihollinen hyökätä kohtaan r,l
+    '''
+    def ruutuHyökkäyksenAlaisena(self, r, l):
+        self.valkoisenSiirto = not self.valkoisenSiirto # Vaihdetaan vastustajan vuoroksi
+        vastustajanSiirrot = self.haeKaikkiSiirrot()
+        self.valkoisenSiirto = not self.valkoisenSiirto # Vaihdetaan vuoro takaisin
+        for siirto in vastustajanSiirrot:
+            if siirto.lopetusRivi == r and siirto.lopetusLinja == l: # Ruutu on hyökkäyksen alaisena
+                return True
+        return False
+
 
     def haeKaikkiSiirrot(self):
         siirrot = []

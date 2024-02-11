@@ -49,8 +49,10 @@ def main():
                     if siirto in laillisetSiirrot:
                         pelitila.teeSiirto(siirto)
                         siirtoTehty = True
-                    valittuRuutu = () # Resettaa klikit
-                    pelaajaKlikit = []
+                        valittuRuutu = () # Resettaa klikit
+                        pelaajaKlikit = []
+                    else:
+                        pelaajaKlikit = [valittuRuutu]
 
             #Näppäin Handler
             elif e.type == p.KEYDOWN:
