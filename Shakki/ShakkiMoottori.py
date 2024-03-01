@@ -18,8 +18,12 @@ class PeliTila():
         self.siirtoLokikirja = []
         self.valkoisenKuninkaanSijainti = (7, 4)
         self.mustanKuninkaanSijainti = (0,4)
+        self.shakissa = False
+        self.kiinnitykset = []
+        self.shakit = []
         self.shakkiMatti = False
         self.pattitilanne = False
+
 
     def teeSiirto(self, siirto):
         self.lauta[siirto.aloitusRivi][siirto.aloitusLinja] = "--"
@@ -47,7 +51,8 @@ class PeliTila():
 
 
     def haeLaillisetSiirrot(self):
-        # 1) Generoidaan kaikki mahdolliset siirrot
+        siirrot = []
+        self.shakissa, self.kiinnitykset, self.shakit = self.
         siirrot = self.haeKaikkiSiirrot()
         # 2) Tee jokainen mahdollinen siirto
         for i in range(len(siirrot)-1, -1, -1): # Lista käydään läpi takaperin bugien välttämiseksi
@@ -101,6 +106,8 @@ class PeliTila():
                     nappula = self.lauta[r][l][1]
                     self.siirtoFunktiot[nappula](r, l, siirrot)
         return siirrot
+
+
 
     def haeSotilasSiirrot(self, r, l, siirrot):
 
@@ -200,6 +207,24 @@ class PeliTila():
                 lopetusRuutu = self.lauta[lopetusRivi][lopetusLinja]
                 if lopetusRuutu[0] != omaVari:
                     siirrot.append(Siirto((r, l), (lopetusRivi, lopetusLinja), self.lauta))
+
+
+    def kiinnityksetJaShakit(self):
+        kiinnitykset = []
+        shakit = []
+        shakissa = False
+        if self.valkoisenSiirto:
+            vastustajanVäri = "b"
+            liittolaisenVäri = "w"
+            aloitusRivi = self.valkoisenKuninkaanSijainti[0]
+            aloitusLinja = self.valkoisenKuninkaanSijainti[1]
+        else:
+            vastustajanVäri = "w"
+            liitolaisenVäri = "b"
+            aloitusRivi = self.mustanKuninkaanSijainti[0]
+            aloituslinja = self.mustanKuninkaanSijainti[1]
+        suunnat = ((-1, 0), (0, -1), (1, 0), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1))
+        for j
 
 
 
