@@ -13,22 +13,19 @@ class PeliTila():
             ["wR", "wN", "wB", "wQ", "wK", "wB", "wN", "wR"]]
         self.siirtoFunktiot = {'p': self.haeSotilasSiirrot, 'R': self.haeTorninSiirrot, 'N': self.haeHevosenSiirrot,
                                'B': self.haeLahettiSiirrot, 'Q': self.haeKuningatarSiirrot, 'K': self.haeKuningasSiirrot}
-
+        self.siirtoLoki = []
         self.valkoisenSiirto = True
-        self.siirtoLokikirja = []
         self.valkoisenKuninkaanSijainti = (7, 4)
-        self.mustanKuninkaanSijainti = (0,4)
+        self.mustanKuninkaanSijainti = (0, 4)
         self.shakissa = False
         self.kiinnitykset = []
         self.shakit = []
-        self.shakkiMatti = False
-        self.pattitilanne = False
 
 
     def teeSiirto(self, siirto):
         self.lauta[siirto.aloitusRivi][siirto.aloitusLinja] = "--"
         self.lauta[siirto.lopetusRivi][siirto.lopetusLinja] = siirto.siirrettyNappula
-        self.siirtoLokikirja.append(siirto) #lisää siirron siirtoLokikirjaan.
+        self.siirtoLoki.append(siirto) #lisää siirron siirtoLokikirjaan.
         self.valkoisenSiirto = not self.valkoisenSiirto #vaihtaa vuoroa.
         # Päivitetään kuninkaan sijainti, jos sitä on siirretty
         if siirto.siirrettyNappula == 'wK':
@@ -38,8 +35,8 @@ class PeliTila():
 
 
     def kumoaSiirto(self):
-        if len(self.siirtoLokikirja) != 0:
-            siirto = self.siirtoLokikirja.pop()
+        if len(self.siirtoLoki) != 0:
+            siirto = self.siirtoLoki.pop()
             self.lauta[siirto.aloitusRivi][siirto.aloitusLinja] = siirto.siirrettyNappula
             self.lauta[siirto.lopetusRivi][siirto.lopetusLinja] = siirto.syotyNappula
             self.valkoisenSiirto = not self.valkoisenSiirto
@@ -51,50 +48,43 @@ class PeliTila():
 
 
     def haeLaillisetSiirrot(self):
+        # 1) Generoidaan kaikki mahdolliset siirrot
         siirrot = []
-        self.shakissa, self.kiinnitykset, self.shakit = self.
-        siirrot = self.haeKaikkiSiirrot()
-        # 2) Tee jokainen mahdollinen siirto
-        for i in range(len(siirrot)-1, -1, -1): # Lista käydään läpi takaperin bugien välttämiseksi
-            self.teeSiirto(siirrot[i])
-            # 3) Generoidaan jokainen vastustajan mahdollinen siirto
-            # 4) Tarkista jokaisen vastustajan siirto ja hyökkääkö hän kuningastasi kohti
-            self.valkoisenSiirto = not self.valkoisenSiirto
-            if self.shakissa():
-                siirrot.remove(siirrot[i]) # 5) Jos he hyökkäävät kuningasta vastaan, se ei ole validi siirto
-            self.valkoisenSiirto = not self.valkoisenSiirto
-            self.kumoaSiirto()
-        if len(siirrot) == 0: # Joko shakkimatti tai pattitilanne
-            if self.shakissa():
-                self.shakkiMatti = True
-            else:
-                self.pattitilanne = True
+        self.shakissa, self.kiinnitykset, self.shakit = self.kiinnityksetJaShakit()
+        if self.valkoisenSiirto:
+            kuninkaanRivi = self.valkoisenKuninkaanSijainti[0]
+            kuninkaanLinja = self.valkoisenKuninkaanSijainti[1]
         else:
-            self.shakkiMatti = False
-            self.pattitilanne = False
+            kuninkaanRivi = self.mustanKuninkaanSijainti[0]
+            kuninkaanLinja = self.mustanKuninkaanSijainti[1]
+        if self.shakissa:
+            if len(self.shakit) == 1:
+                siirrot = self.haeKaikkiSiirrot()
+                shakki = self.shakit[0]
+                haeRivi = shakki[0]
+                haeLinja = shakki[1]
+                kiinnityksenTarkistus = self.lauta[haeRivi][haeLinja]
+                laillisetRuudut = []
+                if kiinnityksenTarkistus[1] == 'N':
+                    laillisetRuudut = [(haeRivi, haeLinja)]
+                else:
+                    for i in range(1, 8):
+                        laillinenRuutu = (kuninkaanRivi + shakki[2] * i, kuninkaanLinja + shakki[3] * i)
+                        laillisetRuudut.append(laillinenRuutu)
+                        if laillinenRuutu[0] == haeRivi and laillinenRuutu[1] == haeLinja:
+                            break
+                for i in range(len(siirrot) - 1, -1, -1):
+                    if siirrot[i].siirrettyNappula[1] != 'K':
+                        if not (siirrot[i].lopetusRivi, siirrot[i].lopetusLinja) in laillisetRuudut:
+                            siirrot.remove(siirrot[i])
+            else:
+                self.haeKuningasSiirrot(kuninkaanRivi, kuninkaanLinja, siirrot)
+        else:
+            siirrot = self.haeKaikkiSiirrot()
 
         return siirrot
 
-    '''
-    Tutkitaan onko tämänhetkinen pelaaja shakissa
-    '''
-    def shakissa(self):
-        if self.valkoisenSiirto:
-            return self.ruutuHyökkäyksenAlaisena(self.valkoisenKuninkaanSijainti[0], self.valkoisenKuninkaanSijainti[1])
-        else:
-            return self.ruutuHyökkäyksenAlaisena(self.mustanKuninkaanSijainti[0], self.mustanKuninkaanSijainti[1])
 
-    '''
-    Tutkitaan voiko vihollinen hyökätä kohtaan r,l
-    '''
-    def ruutuHyökkäyksenAlaisena(self, r, l):
-        self.valkoisenSiirto = not self.valkoisenSiirto # Vaihdetaan vastustajan vuoroksi
-        vastustajanSiirrot = self.haeKaikkiSiirrot()
-        self.valkoisenSiirto = not self.valkoisenSiirto # Vaihdetaan vuoro takaisin
-        for siirto in vastustajanSiirrot:
-            if siirto.lopetusRivi == r and siirto.lopetusLinja == l: # Ruutu on hyökkäyksen alaisena
-                return True
-        return False
 
 
     def haeKaikkiSiirrot(self):
@@ -102,45 +92,72 @@ class PeliTila():
         for r in range(len(self.lauta)): # rivien määrä
             for l in range(len(self.lauta[r])): #linjojen määrä jokaisessa rivissä
                 turn = self.lauta[r][l][0]
-                if (turn == "w" and self.valkoisenSiirto) or (turn == "b" and not self.valkoisenSiirto):
+                if (turn == 'w' and self.valkoisenSiirto) or (turn == 'b' and not self.valkoisenSiirto):
                     nappula = self.lauta[r][l][1]
                     self.siirtoFunktiot[nappula](r, l, siirrot)
         return siirrot
 
 
 
+
+
     def haeSotilasSiirrot(self, r, l, siirrot):
+        nappulaKiinnitetty = False
+        nappulanSuunta = ()
+        for i in range(len(self.kiinnitykset)-1, -1, -1):
+            if self.kiinnitykset[i][0] == r and self.kiinnitykset[i][1] == l:
+                nappulaKiinnitetty = True
+                nappulanSuunta = (self.kiinnitykset[i][2], self.kiinnitykset[i][3])
+                self.kiinnitykset.remove(self.kiinnitykset[i])
+                break
+
 
         if self.valkoisenSiirto: #Valkoisen siirrot
             if self.lauta[r-1][l] == "--":
-                siirrot.append(Siirto((r, l), (r-1, l), self.lauta))
-                if r == 6 and self.lauta[r-2][l] == "--":
-                    siirrot.append(Siirto((r, l),(r-2, l),self.lauta))
+                if not nappulaKiinnitetty or nappulanSuunta == (-1, 0):
+                    siirrot.append(Siirto((r, l), (r-1, l), self.lauta))
+                    if r == 6 and self.lauta[r-2][l] == "--":
+                        siirrot.append(Siirto((r, l),(r-2, l),self.lauta))
+
             if l - 1 >= 0: #Syönnit vasemmalle
                 if self.lauta[r-1][l-1][0] == 'b': # nappula on musta
-                    siirrot.append(Siirto((r, l),(r-1, l-1), self.lauta))
+                    if not nappulaKiinnitetty or nappulanSuunta == (-1, -1):
+                        siirrot.append(Siirto((r, l),(r-1, l-1), self.lauta))
             if l + 1 <= 7: #Syönnit oikealle
                 if self.lauta[r-1][l+1][0] == 'b':
-                    siirrot.append(Siirto((r, l),(r-1, l+1), self.lauta))
+                    if not nappulaKiinnitetty or nappulanSuunta == (-1, 1):
+                        siirrot.append(Siirto((r, l),(r-1, l+1), self.lauta))
 
         else: # Mustan Siirrot
-            if self.lauta[r + 1][l] == "--": #Yhden ruudun siirto
-                siirrot.append(Siirto((r, l), (r+1, l), self.lauta))
-                if r == 1 and self.lauta[r + 2][l] == "--": #Kahden ruudun siirto
-                    siirrot.append(Siirto((r, l),(r+2, l), self.lauta))
+            if self.lauta[r+1][l] == "--": #Yhden ruudun siirto
+                if not nappulaKiinnitetty or nappulanSuunta == (1, 0):
+                    siirrot.append(Siirto((r, l), (r+1, l), self.lauta))
+                    if r == 1 and self.lauta[r+2][l] == "--": #Kahden ruudun siirto
+                        siirrot.append(Siirto((r, l),(r+2, l), self.lauta))
                 #Syönnit
                 if l - 1 >= 0:
-                    if self.lauta[r + 1][l-1][0] == 'w': #Syönti Vase
-                        siirrot.append(Siirto((r, l),(r +1, l - 1), self.lauta))
+                    if self.lauta[r+1][l-1][0] == 'w': #Syönti Vase
+                        if not nappulaKiinnitetty or nappulanSuunta == (1, -1):
+                            siirrot.append(Siirto((r, l),(r +1, l - 1), self.lauta))
                     if l + 1 <= 7: # Syönti oikea
-                        if self.lauta[r + 1][l + 1][0] == 'w':
-                            siirrot.append(Siirto((r, l),(r + 1, l + 1), self.lauta))
+                        if self.lauta[r+1][l+1][0] == 'w':
+                            if not nappulaKiinnitetty or nappulanSuunta == (1, 1):
+                                siirrot.append(Siirto((r, l),(r + 1, l + 1), self.lauta))
         # pitää lisätä sotilaan promo kuningattareksi yms.
 
 
 
 
     def haeTorninSiirrot(self, r, l, siirrot):
+        nappulaKiinnitetty = False
+        nappulanSuunta = ()
+        for i in range(len(self.kiinnitykset)-1, -1, -1):
+            if self.kiinnitykset[i][0] == r and self.kiinnitykset[i][1] == l:
+                nappulaKiinnitetty = True
+                nappulanSuunta = (self.kiinnitykset[i][2], self.kiinnitykset[i][3])
+                if self.lauta[r][l][1] != 'Q':
+                    self.kiinnitykset.remove(self.kiinnitykset[i])
+                break
         suunnat = ((-1, 0), (0, -1), (1, 0), (0, 1))
         vastustajanVari = "b" if self.valkoisenSiirto else "w"
         for s in suunnat:
@@ -148,14 +165,15 @@ class PeliTila():
                 lopetusRivi = r + s[0] * i
                 lopetusLinja = l + s[1] * i
                 if 0 <= lopetusRivi < 8 and 0 <= lopetusLinja < 8:
-                    lopetusRuutu = self.lauta[lopetusRivi][lopetusLinja]
-                    if lopetusRuutu == "--":
-                        siirrot.append(Siirto((r, l), (lopetusRivi, lopetusLinja), self.lauta))
-                    elif lopetusRuutu[0] == vastustajanVari:
-                        siirrot.append(Siirto((r, l), (lopetusRivi, lopetusLinja), self.lauta))
-                        break
-                    else:
-                        break
+                    if not nappulaKiinnitetty or nappulanSuunta == s or nappulanSuunta == (-s[0], -s[1]):
+                        lopetusRuutu = self.lauta[lopetusRivi][lopetusLinja]
+                        if lopetusRuutu == "--":
+                            siirrot.append(Siirto((r, l), (lopetusRivi, lopetusLinja), self.lauta))
+                        elif lopetusRuutu[0] == vastustajanVari:
+                            siirrot.append(Siirto((r, l), (lopetusRivi, lopetusLinja), self.lauta))
+                            break
+                        else:
+                            break
                 else:
                     break
 
@@ -163,6 +181,14 @@ class PeliTila():
 
 
     def haeLahettiSiirrot(self, r, l, siirrot):
+        nappulaKiinnitetty = False
+        nappulanSuunta = ()
+        for i in range(len(self.kiinnitykset) -1, -1, -1):
+            if self.kiinnitykset[i][0] == r and self.kiinnitykset[i][1] == l:
+                nappulaKiinnitetty = True
+                nappulanSuunta = (self.kiinnitykset[i][2], self.kiinnitykset[i][3])
+                self.kiinnitykset.remove(self.kiinnitykset[i])
+                break
         suunnat = ((-1, -1), (-1, 1), (1, -1), (1, 1))
         vastustajanVari = "b" if self.valkoisenSiirto else "w"
         for s in suunnat:
@@ -170,43 +196,62 @@ class PeliTila():
                 lopetusRivi = r + s[0] * i
                 lopetusLinja = l + s[1] * i
                 if 0 <= lopetusRivi < 8 and 0 <= lopetusLinja < 8:
-                    lopetusRuutu = self.lauta[lopetusRivi][lopetusLinja]
-                    if lopetusRuutu == "--":
-                        siirrot.append(Siirto((r, l), (lopetusRivi, lopetusLinja), self.lauta))
-                    elif lopetusRuutu[0] == vastustajanVari:
-                        siirrot.append(Siirto((r, l), (lopetusRivi, lopetusLinja), self.lauta))
-                        break
-                    else:
-                        break
+                    if not nappulaKiinnitetty or nappulanSuunta == s or nappulanSuunta == (-s[0], -s[1]):
+                        lopetusRuutu = self.lauta[lopetusRivi][lopetusLinja]
+                        if lopetusRuutu == "--":
+                            siirrot.append(Siirto((r, l), (lopetusRivi, lopetusLinja), self.lauta))
+                        elif lopetusRuutu[0] == vastustajanVari:
+                            siirrot.append(Siirto((r, l), (lopetusRivi, lopetusLinja), self.lauta))
+                            break
+                        else:
+                            break
                 else:
                     break
 
 
     def haeHevosenSiirrot(self, r, l, siirrot):
+        nappulaKiinnitetty = False
+        for i in range(len(self.kiinnitykset) -1, -1, -1):
+            if self.kiinnitykset[i][0] == r and self.kiinnitykset[i][1] == l:
+                nappulaKiinnitetty = True
+                self.kiinnitykset.remove(self.kiinnitykset[i])
+                break
         hevosenSuunnat = ((-2, -1), (-2, 1), (-1, -2), (-1, 2), (1, -2), (1, 2), (2, -1), (2, 1))
-        omaVari = "w" if self.valkoisenSiirto else "b"
-        for s in hevosenSuunnat:
-            lopetusRivi = r + s[0]
-            lopetusLinja = l + s[1]
+        liittolaisenVari = "w" if self.valkoisenSiirto else "b"
+        for m in hevosenSuunnat:
+            lopetusRivi = r + m[0]
+            lopetusLinja = l + m[1]
             if 0 <= lopetusRivi < 8 and 0 <= lopetusLinja < 8:
-                lopetusRuutu = self.lauta[lopetusRivi][lopetusLinja]
-                if lopetusRuutu[0] != omaVari:
-                    siirrot.append(Siirto((r, l), (lopetusRivi, lopetusLinja), self.lauta))
+                if not nappulaKiinnitetty:
+                    lopetusRuutu = self.lauta[lopetusRivi][lopetusLinja] #onko lopetusRUutu = endPiece?? 32:50
+                    if lopetusRuutu[0] != liittolaisenVari:
+                        siirrot.append(Siirto((r, l), (lopetusRivi, lopetusLinja), self.lauta))
 
     def haeKuningatarSiirrot(self, r, l, siirrot):
         self.haeLahettiSiirrot(r, l, siirrot)
         self.haeTorninSiirrot(r, l, siirrot)
 
     def haeKuningasSiirrot(self, r, l, siirrot):
-        kuningasSuunnat = ((-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1))
-        omaVari = "w" if self.valkoisenSiirto else "b"
+        riviSiirrot = (-1, -1, -1, 0, 0, 1, 1, 1)
+        linjaSiirrot = (-1, 0, 1, -1, 1, -1, 0, 1)
+        liittolaisenVari = "w" if self.valkoisenSiirto else "b"
         for i in range(8):
-            lopetusRivi = r + kuningasSuunnat[i][0]
-            lopetusLinja = l + kuningasSuunnat[i][1]
+            lopetusRivi = r + riviSiirrot[i]
+            lopetusLinja = l + linjaSiirrot[i]
             if 0 <= lopetusRivi < 8 and 0 <= lopetusLinja < 8:
                 lopetusRuutu = self.lauta[lopetusRivi][lopetusLinja]
-                if lopetusRuutu[0] != omaVari:
-                    siirrot.append(Siirto((r, l), (lopetusRivi, lopetusLinja), self.lauta))
+                if lopetusRuutu[0] != liittolaisenVari:
+                    if liittolaisenVari == 'w':
+                        self.valkoisenKuninkaanSijainti = (lopetusRivi, lopetusLinja)
+                    else:
+                        self.mustanKuninkaanSijainti = (lopetusRivi, lopetusLinja)
+                    shakissa, kiinnitykset, shakit = self.kiinnityksetJaShakit()
+                    if not shakissa:
+                        siirrot.append(Siirto((r, l), (lopetusRivi, lopetusLinja), self.lauta))
+                    if liittolaisenVari == 'w':
+                        self.valkoisenKuninkaanSijainti = (r, l)
+                    else:
+                        self.mustanKuninkaanSijainti = (r, l)
 
 
     def kiinnityksetJaShakit(self):
@@ -214,17 +259,56 @@ class PeliTila():
         shakit = []
         shakissa = False
         if self.valkoisenSiirto:
-            vastustajanVäri = "b"
-            liittolaisenVäri = "w"
+            vastustajanVari = 'b'
+            liittolaisenVari = 'w'
             aloitusRivi = self.valkoisenKuninkaanSijainti[0]
             aloitusLinja = self.valkoisenKuninkaanSijainti[1]
         else:
-            vastustajanVäri = "w"
-            liitolaisenVäri = "b"
+            vastustajanVari = 'w'
+            liittolaisenVari = 'b'
             aloitusRivi = self.mustanKuninkaanSijainti[0]
-            aloituslinja = self.mustanKuninkaanSijainti[1]
+            aloitusLinja = self.mustanKuninkaanSijainti[1]
         suunnat = ((-1, 0), (0, -1), (1, 0), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1))
-        for j
+        for j in range(len(suunnat)):
+            s = suunnat[j]
+            mahdKiinnitys = ()
+            for i in range(1, 8):
+                lopetusRivi = aloitusRivi + s[0] * i
+                lopetusLinja = aloitusLinja + s[1] * i
+                if 0 <= lopetusRivi < 8 and 0 <= lopetusLinja < 8:
+                    lopetusRuutu = self.lauta[lopetusRivi][lopetusLinja]
+                    if lopetusRuutu[0] == liittolaisenVari:
+                        if mahdKiinnitys == ():
+                            mahdKiinnitys = (lopetusRivi, lopetusLinja, s[0], s[1])
+                        else:
+                            break
+                    elif lopetusRuutu[0] == vastustajanVari:
+                        tyyppi = lopetusRuutu[1] #tähän asti ok
+                        if (0 <= j <= 3 and tyyppi == 'R') or \
+                                (4 <= j <= 7 and tyyppi == 'B') or \
+                                (i == 1 and tyyppi == 'p' and ((vastustajanVari == 'w' and 6 <= j <= 7) or (vastustajanVari == 'b' and 4 <= j <= 5))) or \
+                                (tyyppi == 'Q') or (i == 1 and tyyppi == 'K'):
+                            if mahdKiinnitys == ():
+                                shakissa = True
+                                shakit.append((lopetusRivi, lopetusLinja, s[0], s[1]))
+                                break
+                            else:
+                                kiinnitykset.append(mahdKiinnitys)
+                                break
+                        else:
+                            break
+                else:
+                    break
+        hevosenSiirrot = ((-2, -1), (-2, 1), (-1, -2), (-1, 2), (1, -2), (1, 2), (2, -1), (2, 1))
+        for m in hevosenSiirrot:
+            lopetusRivi = aloitusRivi + m[0]
+            lopetusLinja = aloitusLinja + m[1]
+            if 0 <= lopetusRivi < 8 and 0 <= lopetusLinja < 8:
+                lopetusRuutu = self.lauta[lopetusRivi][lopetusLinja]
+                if lopetusRuutu[0] == vastustajanVari and lopetusRuutu[1] == 'N':
+                    shakissa = True
+                    shakit.append((lopetusRivi, lopetusLinja, m[0], m[1]))
+        return shakissa, kiinnitykset, shakit
 
 
 
