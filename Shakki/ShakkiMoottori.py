@@ -20,6 +20,9 @@ class PeliTila():
         self.shakissa = False
         self.kiinnitykset = []
         self.shakit = []
+        self.shakkiMatti = False
+        self.staleMate = False
+        self.enpassantMahdollinen = ()
 
 
     def teeSiirto(self, siirto):
@@ -33,6 +36,22 @@ class PeliTila():
         elif siirto.siirrettyNappula == 'bK':
             self.mustanKuninkaanSijainti = (siirto.lopetusRivi, siirto.lopetusLinja)
 
+        #Sotilas ylennys
+        if siirto.sotilasYlennys:
+            #ylennettyNappula = input("Ylennä joko Q, R, B tai N:")
+            self.lauta[siirto.lopetusRivi][siirto.lopetusLinja] = siirto.siirrettyNappula[0] + 'Q'
+
+        #Enpassant siirto
+        if siirto.onEnpassantSiirto:
+            self.lauta[siirto.aloitusRivi][siirto.lopetusLinja] = '--' #Syö Sotilaan
+
+        #Päivitä enpassantMahdollinen muuttujaa
+        if siirto.siirrettyNappula[1] == 'p' and abs(siirto.aloitusRivi - siirto.lopetusRivi) == 2: #vain 2 ruudun edennyt sotilas
+            self.enpassantMahdollinen = ((siirto.aloitusRivi + siirto.lopetusRivi)//2, siirto.aloitusLinja)
+        else:
+            self.enpassantMahdollinen = ()
+
+
 
     def kumoaSiirto(self):
         if len(self.siirtoLoki) != 0:
@@ -45,6 +64,15 @@ class PeliTila():
                 self.valkoisenKuninkaanSijainti = (siirto.aloitusRivi, siirto.aloitusLinja)
             elif siirto.siirrettyNappula == 'bK':
                 self.mustanKuninkaanSijainti = (siirto.aloitusRivi, siirto.aloitusLinja)
+            #peruuta enpassant siirto
+            if siirto.onEnpassantSiirto:
+                self.lauta[siirto.lopetusRivi][siirto.lopetusLinja] = '--' #jätä lopetus ruutu tyhjäksi
+                self.lauta[siirto.aloitusRivi][siirto.lopetusLinja] = siirto.syotyNappula
+                self.enpassantMahdollinen = (siirto.lopetusRivi, siirto.lopetusLinja)
+            # peruuta kahden ruudun sotilas siirto
+            if siirto.siirrettyNappula[1] == 'p' and abs(siirto.aloitusRivi - siirto.lopetusRivi) == 2:
+                self.enpassantMahdollinen = ()
+
 
 
     def haeLaillisetSiirrot(self):
@@ -82,6 +110,14 @@ class PeliTila():
         else:
             siirrot = self.haeKaikkiSiirrot()
 
+        if len(siirrot) == 0:
+            if self.shakissa:
+                self.shakissa = True
+            else:
+                self.staleMate = True
+        else:
+            self.shakissa = False
+            self.staleMate = False
         return siirrot
 
 
@@ -111,39 +147,42 @@ class PeliTila():
                 self.kiinnitykset.remove(self.kiinnitykset[i])
                 break
 
+        if self.valkoisenSiirto:
+            siirtoMaara = -1
+            aloitusRivi = 6
+            takaRivi = 0
+            vihollisenVari = 'b'
 
-        if self.valkoisenSiirto: #Valkoisen siirrot
-            if self.lauta[r-1][l] == "--":
-                if not nappulaKiinnitetty or nappulanSuunta == (-1, 0):
-                    siirrot.append(Siirto((r, l), (r-1, l), self.lauta))
-                    if r == 6 and self.lauta[r-2][l] == "--":
-                        siirrot.append(Siirto((r, l),(r-2, l),self.lauta))
+        else:
+            siirtoMaara = 1
+            aloitusRivi = 1
+            takaRivi = 7
+            vihollisenVari = 'w'
+        sotilasYlennys = False
 
-            if l - 1 >= 0: #Syönnit vasemmalle
-                if self.lauta[r-1][l-1][0] == 'b': # nappula on musta
-                    if not nappulaKiinnitetty or nappulanSuunta == (-1, -1):
-                        siirrot.append(Siirto((r, l),(r-1, l-1), self.lauta))
-            if l + 1 <= 7: #Syönnit oikealle
-                if self.lauta[r-1][l+1][0] == 'b':
-                    if not nappulaKiinnitetty or nappulanSuunta == (-1, 1):
-                        siirrot.append(Siirto((r, l),(r-1, l+1), self.lauta))
-
-        else: # Mustan Siirrot
-            if self.lauta[r+1][l] == "--": #Yhden ruudun siirto
-                if not nappulaKiinnitetty or nappulanSuunta == (1, 0):
-                    siirrot.append(Siirto((r, l), (r+1, l), self.lauta))
-                    if r == 1 and self.lauta[r+2][l] == "--": #Kahden ruudun siirto
-                        siirrot.append(Siirto((r, l),(r+2, l), self.lauta))
-                #Syönnit
-                if l - 1 >= 0:
-                    if self.lauta[r+1][l-1][0] == 'w': #Syönti Vase
-                        if not nappulaKiinnitetty or nappulanSuunta == (1, -1):
-                            siirrot.append(Siirto((r, l),(r +1, l - 1), self.lauta))
-                    if l + 1 <= 7: # Syönti oikea
-                        if self.lauta[r+1][l+1][0] == 'w':
-                            if not nappulaKiinnitetty or nappulanSuunta == (1, 1):
-                                siirrot.append(Siirto((r, l),(r + 1, l + 1), self.lauta))
-        # pitää lisätä sotilaan promo kuningattareksi yms.
+        if self.lauta[r+siirtoMaara][l] == "--": # yhden ruudun siirto
+            if not nappulaKiinnitetty or nappulanSuunta == (siirtoMaara, 0):
+                if r+siirtoMaara == takaRivi:
+                    sotilasYlennys = True
+                siirrot.append(Siirto((r, l), (r+siirtoMaara, l), self.lauta, sotilasYlennys=sotilasYlennys))
+                if r == aloitusRivi and self.lauta[r+2*siirtoMaara][l] == "--": # kahden ruudun siirto
+                    siirrot.append(Siirto((r, l), (r+2*siirtoMaara, l), self.lauta))
+        if l-1 >= 0: # Syönti vasemmalle
+            if not nappulaKiinnitetty or nappulanSuunta == (siirtoMaara, -1):
+                if self.lauta[r + siirtoMaara][l-1][0] == vihollisenVari:
+                    if r+ siirtoMaara == takaRivi: # Jos nappula pääsee loppu riville ja on sotilas = ylennys
+                        sotilasYlennys = True
+                    siirrot.append(Siirto((r, l), (r+siirtoMaara, l-1), self.lauta, sotilasYlennys=sotilasYlennys))
+                if (r + siirtoMaara, l-1) == self.enpassantMahdollinen:
+                    siirrot.append(Siirto((r, l), (r+siirtoMaara, l-1), self.lauta, onEnpassantSiirto=True))
+        if l+1 <= 7: #Syönti oikealle
+            if not nappulaKiinnitetty or nappulanSuunta == (siirtoMaara, 1):
+                if self.lauta[r + siirtoMaara][l +1][0] == vihollisenVari:
+                    if r + siirtoMaara == takaRivi:
+                        sotilasYlennys = True
+                    siirrot.append(Siirto((r, l), (r+siirtoMaara, l+1), self.lauta, sotilasYlennys=sotilasYlennys))
+                if (r + siirtoMaara, l +1) == self.enpassantMahdollinen:
+                    siirrot.append(Siirto((r, l), (r+siirtoMaara, l+1), self.lauta, onEnpassantSiirto=True))
 
 
 
@@ -324,13 +363,17 @@ class Siirto():
 
 
 
-    def __init__(self, aloitusRuutu, lopetusRuutu, lauta):
+    def __init__(self, aloitusRuutu, lopetusRuutu, lauta, onEnpassantSiirto = False, sotilasYlennys = False):
         self.aloitusRivi = aloitusRuutu[0]
         self.aloitusLinja = aloitusRuutu[1]
         self.lopetusRivi = lopetusRuutu[0]
         self.lopetusLinja = lopetusRuutu[1]
         self.siirrettyNappula = lauta[self.aloitusRivi][self.aloitusLinja]
         self.syotyNappula = lauta[self.lopetusRivi][self.lopetusLinja]
+        self.sotilasYlennys = sotilasYlennys
+        self.onEnpassantSiirto = onEnpassantSiirto
+        if self.onEnpassantSiirto:
+            self.syotyNappula = 'wp' if self.siirrettyNappula == 'bp' else 'bp'
         self.siirtoID = self.aloitusRivi * 1000 + self.aloitusLinja * 100 + self.lopetusRivi * 10 + self.lopetusLinja
 
 
