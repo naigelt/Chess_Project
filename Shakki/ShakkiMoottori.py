@@ -18,7 +18,7 @@ class PeliTila():
         self.siirtoLokikirja = []
         self.valkoisenKuninkaanSijainti = (7, 4)
         self.mustanKuninkaanSijainti = (0,4)
-        self.shakkiMatti = False
+        self.shakkimatti = False
         self.pattitilanne = False
         self.enpassantMahdollinen = ()
         self.nykyinenCastleOikeus = CastleOikeudet(True, True, True, True)
@@ -134,11 +134,11 @@ class PeliTila():
             self.kumoaSiirto()
         if len(siirrot) == 0: # Joko shakkimatti tai pattitilanne
             if self.shakissa():
-                self.shakkiMatti = True
+                self.shakkimatti = True
             else:
                 self.pattitilanne = True
         else:
-            self.shakkiMatti = False
+            self.shakkimatti = False
             self.pattitilanne = False
         self.enpassantMahdollinen = tempEnpassantMahdollinen
         self.nykyinenCastleOikeus = tempCastleOikeus
