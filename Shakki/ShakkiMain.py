@@ -46,12 +46,13 @@ def main():
                 if len(pelaajaKlikit) == 2: #toisen klikin jälkeen.
                     siirto = ShakkiMoottori.Siirto(pelaajaKlikit[0], pelaajaKlikit[1], pelitila.lauta)
                     print(siirto.haeShakkiNotaatio())
-                    if siirto in laillisetSiirrot:
-                        pelitila.teeSiirto(siirto)
-                        siirtoTehty = True
-                        valittuRuutu = () # Resettaa klikit
-                        pelaajaKlikit = []
-                    else:
+                    for i in range(len(laillisetSiirrot)):
+                        if siirto == laillisetSiirrot[i]:
+                            pelitila.teeSiirto(laillisetSiirrot[i])
+                            siirtoTehty = True
+                            valittuRuutu = ()  # Resettaa klikit
+                            pelaajaKlikit = []
+                    if not siirtoTehty:
                         pelaajaKlikit = [valittuRuutu]
 
             #Näppäin Handler

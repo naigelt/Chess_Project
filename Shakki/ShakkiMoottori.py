@@ -20,6 +20,7 @@ class PeliTila():
         self.mustanKuninkaanSijainti = (0,4)
         self.shakkiMatti = False
         self.pattitilanne = False
+        self.enpassantMahdollinen = ()
 
     def teeSiirto(self, siirto):
         self.lauta[siirto.aloitusRivi][siirto.aloitusLinja] = "--"
@@ -31,7 +32,20 @@ class PeliTila():
             self.valkoisenKuninkaanSijainti = (siirto.lopetusRivi, siirto.lopetusLinja)
         elif siirto.siirrettyNappula == 'bK':
             self.mustanKuninkaanSijainti = (siirto.lopetusRivi, siirto.lopetusLinja)
+            # Sotilas ylennys
+        if siirto.onSotilasYlennys:
+            # ylennettyNappula = input("Ylennä joko Q, R, B tai N:")
+            self.lauta[siirto.lopetusRivi][siirto.lopetusLinja] = siirto.siirrettyNappula[0] + 'Q'
 
+            # Enpassant siirto
+        if siirto.onEnpassantSiirto:
+            self.lauta[siirto.aloitusRivi][siirto.lopetusLinja] = '--'  # Syö Sotilaan
+
+            # Päivitä enpassant Mahdollinen muuttujaa
+        if siirto.siirrettyNappula[1] == 'p' and abs(siirto.aloitusRivi - siirto.lopetusRivi) == 2:  # vain 2 ruudun edennyt sotilas
+            self.enpassantMahdollinen = ((siirto.aloitusRivi + siirto.lopetusRivi) // 2, siirto.aloitusLinja)
+        else:
+            self.enpassantMahdollinen = ()
 
     def kumoaSiirto(self):
         if len(self.siirtoLokikirja) != 0:
@@ -44,9 +58,17 @@ class PeliTila():
                 self.valkoisenKuninkaanSijainti = (siirto.aloitusRivi, siirto.aloitusLinja)
             elif siirto.siirrettyNappula == 'bK':
                 self.mustanKuninkaanSijainti = (siirto.aloitusRivi, siirto.aloitusLinja)
+            if siirto.onEnpassantSiirto:
+                self.lauta[siirto.lopetusRivi][siirto.lopetusLinja] = '--'  # jätä lopetus ruutu tyhjäksi
+                self.lauta[siirto.aloitusRivi][siirto.lopetusLinja] = siirto.syotyNappula
+                self.enpassantMahdollinen = (siirto.lopetusRivi, siirto.lopetusLinja)
+                # peruuta kahden ruudun sotilas siirto
+            if siirto.siirrettyNappula[1] == 'p' and abs(siirto.aloitusRivi - siirto.lopetusRivi) == 2:
+                self.enpassantMahdollinen = ()
 
 
     def haeLaillisetSiirrot(self):
+        tempEnpassantMahdollinen = self.enpassantMahdollinen
         # 1) Generoidaan kaikki mahdolliset siirrot
         siirrot = self.haeKaikkiSiirrot()
         # 2) Tee jokainen mahdollinen siirto
@@ -67,6 +89,7 @@ class PeliTila():
         else:
             self.shakkiMatti = False
             self.pattitilanne = False
+        self.enpassantMahdollinen = tempEnpassantMahdollinen
 
         return siirrot
 
@@ -112,9 +135,13 @@ class PeliTila():
             if l - 1 >= 0: #Syönnit vasemmalle
                 if self.lauta[r-1][l-1][0] == 'b': # nappula on musta
                     siirrot.append(Siirto((r, l),(r-1, l-1), self.lauta))
+                elif (r-1, l-1) == self.enpassantMahdollinen:
+                    siirrot.append(Siirto((r, l),(r-1, l-1), self.lauta, onEnpassantSiirto=True))
             if l + 1 <= 7: #Syönnit oikealle
                 if self.lauta[r-1][l+1][0] == 'b':
                     siirrot.append(Siirto((r, l),(r-1, l+1), self.lauta))
+                elif (r - 1, l + 1) == self.enpassantMahdollinen:
+                    siirrot.append(Siirto((r, l), (r - 1, l + 1), self.lauta, onEnpassantSiirto=True))
 
         else: # Mustan Siirrot
             if self.lauta[r + 1][l] == "--": #Yhden ruudun siirto
@@ -125,9 +152,13 @@ class PeliTila():
                 if l - 1 >= 0:
                     if self.lauta[r + 1][l-1][0] == 'w': #Syönti Vase
                         siirrot.append(Siirto((r, l),(r +1, l - 1), self.lauta))
+                    elif (r + 1, l - 1) == self.enpassantMahdollinen:
+                        siirrot.append(Siirto((r, l), (r + 1, l - 1), self.lauta, onEnpassantSiirto=True))
                     if l + 1 <= 7: # Syönti oikea
                         if self.lauta[r + 1][l + 1][0] == 'w':
                             siirrot.append(Siirto((r, l),(r + 1, l + 1), self.lauta))
+                        elif (r + 1, l + 1) == self.enpassantMahdollinen:
+                            siirrot.append(Siirto((r, l), (r + 1, l + 1), self.lauta, onEnpassantSiirto=True))
         # pitää lisätä sotilaan promo kuningattareksi yms.
 
 
@@ -215,13 +246,20 @@ class Siirto():
 
 
 
-    def __init__(self, aloitusRuutu, lopetusRuutu, lauta):
+    def __init__(self, aloitusRuutu, lopetusRuutu, lauta, onEnpassantSiirto=False):
         self.aloitusRivi = aloitusRuutu[0]
         self.aloitusLinja = aloitusRuutu[1]
         self.lopetusRivi = lopetusRuutu[0]
         self.lopetusLinja = lopetusRuutu[1]
         self.siirrettyNappula = lauta[self.aloitusRivi][self.aloitusLinja]
         self.syotyNappula = lauta[self.lopetusRivi][self.lopetusLinja]
+        #Sotilas ylennys
+        self.onSotilasYlennys = (self.siirrettyNappula == 'wp' and self.lopetusRivi == 0) or (self.siirrettyNappula == 'bp' and self.lopetusRivi == 7)
+        #Enpassant
+        self.onEnpassantSiirto = onEnpassantSiirto
+        if self.onEnpassantSiirto:
+            self.syotyNappula = 'wp' if self.siirrettyNappula == 'bp' else 'bp'
+
         self.siirtoID = self.aloitusRivi * 1000 + self.aloitusLinja * 100 + self.lopetusRivi * 10 + self.lopetusLinja
 
 
