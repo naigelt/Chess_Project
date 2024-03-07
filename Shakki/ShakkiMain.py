@@ -74,7 +74,7 @@ def piirraPeliTila(screen, pelitila):
     piirraNappulat(screen, pelitila.lauta)
 
 def piirraRuutu(screen):
-    varit = [p.Color("white"), p.Color("dark green")]
+    varit = [p.Color("white"), p.Color("dark cyan")]
     for rivi in range(DIMENSION):
         for linja in range(DIMENSION):
             vari = varit[((rivi + linja) % 2)]

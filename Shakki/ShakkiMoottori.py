@@ -21,6 +21,9 @@ class PeliTila():
         self.shakkiMatti = False
         self.pattitilanne = False
         self.enpassantMahdollinen = ()
+        self.nykyinenCastleOikeus = CastleOikeudet(True, True, True, True)
+        self.castleOikeusLoki = [CastleOikeudet(self.nykyinenCastleOikeus.wks, self.nykyinenCastleOikeus.bks,
+                                                self.nykyinenCastleOikeus.wqs, self.nykyinenCastleOikeus.bqs)]
 
     def teeSiirto(self, siirto):
         self.lauta[siirto.aloitusRivi][siirto.aloitusLinja] = "--"
@@ -36,17 +39,28 @@ class PeliTila():
         if siirto.onSotilasYlennys:
             # ylennettyNappula = input("Ylennä joko Q, R, B tai N:")
             self.lauta[siirto.lopetusRivi][siirto.lopetusLinja] = siirto.siirrettyNappula[0] + 'Q'
-
             # Enpassant siirto
         if siirto.onEnpassantSiirto:
             self.lauta[siirto.aloitusRivi][siirto.lopetusLinja] = '--'  # Syö Sotilaan
-
             # Päivitä enpassant Mahdollinen muuttujaa
         if siirto.siirrettyNappula[1] == 'p' and abs(siirto.aloitusRivi - siirto.lopetusRivi) == 2:  # vain 2 ruudun edennyt sotilas
             self.enpassantMahdollinen = ((siirto.aloitusRivi + siirto.lopetusRivi) // 2, siirto.aloitusLinja)
         else:
             self.enpassantMahdollinen = ()
 
+        #Castle Siirto
+        if siirto.onCastleSiirto:
+            if siirto.lopetusLinja - siirto.aloitusLinja == 2: # Kuninkaan puolen castle siirto
+                self.lauta[siirto.lopetusRivi][siirto.lopetusLinja-1] = self.lauta[siirto.lopetusRivi][siirto.lopetusLinja+1] #Kopio Tornin uuteen ruutuun
+                self.lauta[siirto.lopetusRivi][siirto.lopetusLinja+1] = '--'
+            else: # Kuningattaren puolen Castle siirto
+                self.lauta[siirto.lopetusRivi][siirto.lopetusLinja+1] = self.lauta[siirto.lopetusRivi][siirto.lopetusLinja-2] # Kopio tornin uuteen ruutuun
+                self.lauta[siirto.lopetusRivi][siirto.lopetusLinja-2] = '--'
+
+        #Päivitä Castling oikeudet - kun torni tai kuningas tekee siirron
+        self.paivitaCastleOikeudet(siirto)
+        self.castleOikeusLoki.append(CastleOikeudet(self.nykyinenCastleOikeus.wks, self.nykyinenCastleOikeus.bks,
+                                                self.nykyinenCastleOikeus.wqs, self.nykyinenCastleOikeus.bqs))
     def kumoaSiirto(self):
         if len(self.siirtoLokikirja) != 0:
             siirto = self.siirtoLokikirja.pop()
@@ -66,11 +80,48 @@ class PeliTila():
             if siirto.siirrettyNappula[1] == 'p' and abs(siirto.aloitusRivi - siirto.lopetusRivi) == 2:
                 self.enpassantMahdollinen = ()
 
+            #Peruuta Castlin oikeudet
+            self.castleOikeusLoki.pop() #Poistamme uudet castle oikeudet siirrosta minkä teemme
+            self.nykyinenCastleOikeus = self.castleOikeusLoki[-1] #Palautamme aikaisemmat castle oikeudet listasta
+            #Peruuta Castle siirto
+            if siirto.onCastleSiirto:
+                if siirto.lopetusLinja - siirto.aloitusLinja == 2:
+                    self.lauta[siirto.lopetusRivi][siirto.lopetusLinja+1] = self.lauta[siirto.lopetusRivi][siirto.lopetusLinja-1]
+                    self.lauta[siirto.lopetusRivi][siirto.lopetusLinja-1] = '--'
+                else: # Kuningattaren puoli
+                    self.lauta[siirto.lopetusRivi][siirto.lopetusLinja-2] = self.lauta[siirto.lopetusRivi][siirto.lopetusLinja+1]
+                    self.lauta[siirto.lopetusRivi][siirto.lopetusLinja + 1] = '--'
+
+    def paivitaCastleOikeudet(self, siirto):
+        if siirto.siirrettyNappula == 'wK':
+            self.nykyinenCastleOikeus.wks = False
+            self.nykyinenCastleOikeus.wqs = False
+        elif siirto.siirrettyNappula == 'bK':
+            self.nykyinenCastleOikeus.bks = False
+            self.nykyinenCastleOikeus.wks = False
+        elif siirto.siirrettyNappula == 'wR':
+            if siirto.aloitusRivi == 7:
+                if siirto.aloitusLinja == 0: #Vasen torni
+                    self.nykyinenCastleOikeus.wqs = False
+                elif siirto.aloitusLinja == 7:#Oikea Torni
+                    self.nykyinenCastleOikeus.wks = False
+        elif siirto.siirrettyNappula == 'bR':
+            if siirto.aloitusRivi == 0:
+                if siirto.aloitusLinja == 0: #Vasen torni
+                    self.nykyinenCastleOikeus.bqs = False
+                elif siirto.aloitusLinja == 7:#Oikea Torni
+                    self.nykyinenCastleOikeus.bks = False
 
     def haeLaillisetSiirrot(self):
         tempEnpassantMahdollinen = self.enpassantMahdollinen
+        tempCastleOikeus = CastleOikeudet(self.nykyinenCastleOikeus.wks, self.nykyinenCastleOikeus.bks,
+                                          self.nykyinenCastleOikeus.wqs, self.nykyinenCastleOikeus.bqs) # Kopio tämänhetkiset castle oikeudet
         # 1) Generoidaan kaikki mahdolliset siirrot
         siirrot = self.haeKaikkiSiirrot()
+        if self.valkoisenSiirto:
+            self.haeCastleSiirrot(self.valkoisenKuninkaanSijainti[0], self.valkoisenKuninkaanSijainti[1], siirrot)
+        else:
+            self.haeCastleSiirrot(self.mustanKuninkaanSijainti[0], self.mustanKuninkaanSijainti[1], siirrot)
         # 2) Tee jokainen mahdollinen siirto
         for i in range(len(siirrot)-1, -1, -1): # Lista käydään läpi takaperin bugien välttämiseksi
             self.teeSiirto(siirrot[i])
@@ -90,9 +141,9 @@ class PeliTila():
             self.shakkiMatti = False
             self.pattitilanne = False
         self.enpassantMahdollinen = tempEnpassantMahdollinen
+        self.nykyinenCastleOikeus = tempCastleOikeus
 
         return siirrot
-
     '''
     Tutkitaan onko tämänhetkinen pelaaja shakissa
     '''
@@ -101,7 +152,6 @@ class PeliTila():
             return self.ruutuHyökkäyksenAlaisena(self.valkoisenKuninkaanSijainti[0], self.valkoisenKuninkaanSijainti[1])
         else:
             return self.ruutuHyökkäyksenAlaisena(self.mustanKuninkaanSijainti[0], self.mustanKuninkaanSijainti[1])
-
     '''
     Tutkitaan voiko vihollinen hyökätä kohtaan r,l
     '''
@@ -114,7 +164,6 @@ class PeliTila():
                 return True
         return False
 
-
     def haeKaikkiSiirrot(self):
         siirrot = []
         for r in range(len(self.lauta)): # rivien määrä
@@ -126,7 +175,6 @@ class PeliTila():
         return siirrot
 
     def haeSotilasSiirrot(self, r, l, siirrot):
-
         if self.valkoisenSiirto: #Valkoisen siirrot
             if self.lauta[r-1][l] == "--":
                 siirrot.append(Siirto((r, l), (r-1, l), self.lauta))
@@ -183,9 +231,6 @@ class PeliTila():
                 else:
                     break
 
-
-
-
     def haeLahettiSiirrot(self, r, l, siirrot):
         suunnat = ((-1, -1), (-1, 1), (1, -1), (1, 1))
         vastustajanVari = "b" if self.valkoisenSiirto else "w"
@@ -204,7 +249,6 @@ class PeliTila():
                         break
                 else:
                     break
-
 
     def haeHevosenSiirrot(self, r, l, siirrot):
         hevosenSuunnat = ((-2, -1), (-2, 1), (-1, -2), (-1, 2), (1, -2), (1, 2), (2, -1), (2, 1))
@@ -232,6 +276,34 @@ class PeliTila():
                 if lopetusRuutu[0] != omaVari:
                     siirrot.append(Siirto((r, l), (lopetusRivi, lopetusLinja), self.lauta))
 
+    def haeCastleSiirrot(self, r, l, siirrot):
+        if self.ruutuHyökkäyksenAlaisena(r, l):
+            return # EI voi castleta jos on shakissa
+        if (self.valkoisenSiirto and self.nykyinenCastleOikeus.wks) or (not self.valkoisenSiirto and self.nykyinenCastleOikeus.bks):
+            self.haeKuninkaanPuolenCastleSiirrot(r, l, siirrot)
+        if (self.valkoisenSiirto and self.nykyinenCastleOikeus.wqs) or (not self.valkoisenSiirto and self.nykyinenCastleOikeus.bqs):
+            self.haeKuningattarenPuolenCastleSiirrot(r, l, siirrot)
+
+    def haeKuninkaanPuolenCastleSiirrot(self, r, l, siirrot):
+        if self.lauta[r][l+1] == '--' and self.lauta[r][l+2] == '--':
+            if not self.ruutuHyökkäyksenAlaisena(r, l+1) and not self.ruutuHyökkäyksenAlaisena(r, l+2):
+                siirrot.append(Siirto((r, l), (r, l+2), self.lauta, onCastleSiirto=True))
+
+
+    def haeKuningattarenPuolenCastleSiirrot(self, r, l, siirrot):
+        if self.lauta[r][l-1] == '--' and self.lauta[r][l-2] == '--' and self.lauta[r][l-3]:
+            if not self.ruutuHyökkäyksenAlaisena(r, l - 1) and not self.ruutuHyökkäyksenAlaisena(r, l - 2):
+                siirrot.append(Siirto((r, l), (r, l - 2), self.lauta, onCastleSiirto=True))
+
+
+class CastleOikeudet():
+    def __init__(self, wks, bks, wqs, bqs):
+        self.wks = wks
+        self.bks = bks
+        self.wqs = wqs
+        self.bqs = bqs
+
+
 
 
 class Siirto():
@@ -246,7 +318,7 @@ class Siirto():
 
 
 
-    def __init__(self, aloitusRuutu, lopetusRuutu, lauta, onEnpassantSiirto=False):
+    def __init__(self, aloitusRuutu, lopetusRuutu, lauta, onEnpassantSiirto=False, onCastleSiirto=False):
         self.aloitusRivi = aloitusRuutu[0]
         self.aloitusLinja = aloitusRuutu[1]
         self.lopetusRivi = lopetusRuutu[0]
@@ -259,6 +331,8 @@ class Siirto():
         self.onEnpassantSiirto = onEnpassantSiirto
         if self.onEnpassantSiirto:
             self.syotyNappula = 'wp' if self.siirrettyNappula == 'bp' else 'bp'
+        #Castle Siirto
+        self.onCastleSiirto = onCastleSiirto
 
         self.siirtoID = self.aloitusRivi * 1000 + self.aloitusLinja * 100 + self.lopetusRivi * 10 + self.lopetusLinja
 
