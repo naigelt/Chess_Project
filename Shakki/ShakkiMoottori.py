@@ -196,17 +196,17 @@ class PeliTila():
                 siirrot.append(Siirto((r, l), (r+1, l), self.lauta))
                 if r == 1 and self.lauta[r + 2][l] == "--": #Kahden ruudun siirto
                     siirrot.append(Siirto((r, l),(r+2, l), self.lauta))
-                #Syönnit
-                if l - 1 >= 0:
-                    if self.lauta[r + 1][l-1][0] == 'w': #Syönti Vase
-                        siirrot.append(Siirto((r, l),(r +1, l - 1), self.lauta))
-                    elif (r + 1, l - 1) == self.enpassantMahdollinen:
-                        siirrot.append(Siirto((r, l), (r + 1, l - 1), self.lauta, onEnpassantSiirto=True))
-                    if l + 1 <= 7: # Syönti oikea
-                        if self.lauta[r + 1][l + 1][0] == 'w':
-                            siirrot.append(Siirto((r, l),(r + 1, l + 1), self.lauta))
-                        elif (r + 1, l + 1) == self.enpassantMahdollinen:
-                            siirrot.append(Siirto((r, l), (r + 1, l + 1), self.lauta, onEnpassantSiirto=True))
+            #Syönnit
+            if l - 1 >= 0:
+                if self.lauta[r + 1][l-1][0] == 'w': #Syönti Vase
+                    siirrot.append(Siirto((r, l),(r +1, l - 1), self.lauta))
+                elif (r + 1, l - 1) == self.enpassantMahdollinen:
+                    siirrot.append(Siirto((r, l), (r + 1, l - 1), self.lauta, onEnpassantSiirto=True))
+            if l + 1 <= 7: # Syönti oikea
+                if self.lauta[r + 1][l + 1][0] == 'w':
+                    siirrot.append(Siirto((r, l),(r + 1, l + 1), self.lauta))
+                elif (r + 1, l + 1) == self.enpassantMahdollinen:
+                    siirrot.append(Siirto((r, l), (r + 1, l + 1), self.lauta, onEnpassantSiirto=True))
         # pitää lisätä sotilaan promo kuningattareksi yms.
 
 
