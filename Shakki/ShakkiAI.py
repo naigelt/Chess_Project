@@ -10,41 +10,9 @@ def etsiRandomSiirto(laillisetSiirrot):
    return laillisetSiirrot[random.randint(0, len(laillisetSiirrot) - 1)]
 
 def etsiParasSiirto(pelitila, laillisetSiirrot):
-    vuoroKerroin = 1 if pelitila.valkoisenSiirto else -1
-    vastustajanMinMaxPisteet = SHAKKIMATTI
-    parasPelaajaSiirto = None
-    random.shuffle(laillisetSiirrot)
-    for pelaajaSiirto in laillisetSiirrot:
-        pelitila.teeSiirto(pelaajaSiirto)
-        vastustajanSiirrot = pelitila.haeLaillisetSiirrot()
-        if pelitila.pattitilanne:
-            vastustajanMaksimiPisteet = PATTITILANNE
-        elif pelitila.shakkimatti:
-            vastustajanMaksimiPisteet = -SHAKKIMATTI
-        else:
-            vastustajanMaksimiPisteet = -SHAKKIMATTI
-            for vastustajanSiirrot in vastustajanSiirrot:
-                pelitila.teeSiirto(vastustajanSiirrot)
-                pelitila.haeLaillisetSiirrot()
-                if pelitila.shakkimatti:
-                    pisteet = -vuoroKerroin * SHAKKIMATTI
-                elif pelitila.pattitilanne:
-                    pisteet = PATTITILANNE
-                else:
-                    pisteet = -vuoroKerroin * pisteytaResurssit(pelitila.lauta)
-                if pisteet > vastustajanMaksimiPisteet:
-                    vastustajanMaksimiPisteet = pisteet
-                pelitila.kumoaSiirto()
-            if vastustajanMaksimiPisteet < vastustajanMinMaxPisteet:
-                vastustajanMinMaxPisteet = vastustajanMaksimiPisteet
-                parasPelaajaSiirto = pelaajaSiirto
-            pelitila.kumoaSiirto()
-    return parasPelaajaSiirto
-
-def etsiParasSiirtoMinMax(pelitila, laillisetSiirrot):
     global seuraavaSiirto
     seuraavaSiirto = None
-    etsiSiirtoMinMax(pelitila, laillisetSiirrot, SYVYYS, pelitila.valkoisenSiirto)
+    etsiSiirtoNegaMax(pelitila, laillisetSiirrot, SYVYYS,1 if pelitila.valkoisenSiirto else -1)
     return seuraavaSiirto
 
 def etsiSiirtoMinMax(pelitila, laillisetSiirrot, syvyys, valkoisenVuoro):
@@ -68,7 +36,7 @@ def etsiSiirtoMinMax(pelitila, laillisetSiirrot, syvyys, valkoisenVuoro):
     else:
         minimiPisteet = SHAKKIMATTI
         for siirto in laillisetSiirrot:
-            pelitila.teeSiirto()
+            pelitila.teeSiirto(siirto)
             seuraavaSiirto = pelitila.haeLaillisetSiirrot()
             pisteet = etsiSiirtoMinMax(pelitila, seuraavaSiirto, syvyys - 1, True)
             if pisteet > minimiPisteet:
@@ -78,6 +46,22 @@ def etsiSiirtoMinMax(pelitila, laillisetSiirrot, syvyys, valkoisenVuoro):
             pelitila.kumoaSiirto()
         return minimiPisteet
 
+def etsiSiirtoNegaMax(pelitila, laillisetSiirrot, syvyys, siirtoKerroin):
+    global seuraavaSiirto
+    if syvyys == 0:
+        return siirtoKerroin * pisteTaulu(pelitila)
+
+    maksimiPisteet = -SHAKKIMATTI
+    for siirto in laillisetSiirrot:
+        pelitila.teeSiirto(siirto)
+        seuraavaSiirto = pelitila.haeLaillisetSiirrot()
+        pisteet = -etsiSiirtoNegaMax(pelitila, seuraavaSiirto, syvyys -1, -siirtoKerroin)
+        if pisteet > maksimiPisteet:
+            maksimiPisteet = pisteet
+            if syvyys == SYVYYS:
+                seuraavaSiirto = siirto
+        pelitila.kumoaSiirto()
+    return maksimiPisteet
 
 #Postiiviset pisteet ovat hyvä valkoiselle, negatiiviset hyvä mustalle
 def pisteTaulu(pelitila):

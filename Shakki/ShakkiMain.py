@@ -28,7 +28,7 @@ def main():
     valittuRuutu = () #Pitää kirjaa mihin pelaaja clikkasi viimeksi. tuple (r, l)
     pelaajaKlikit = [] #Pitää kirjaa pelaajan klikeistä[(4,4), (3,4)]
     peliLoppu = False
-    pelaaja1 = True #Jos ihminen pelaa valkoista, tämä on True. Jos Ai pelaa valkoista niin tämä on False
+    pelaaja1 = False #Jos ihminen pelaa valkoista, tämä on True. Jos Ai pelaa valkoista niin tämä on False
     pelaaja2 = False # Sama mutta mustalle
     while kaynnissa:
         ihmisenVuoro = (pelitila.valkoisenSiirto and pelaaja1) or (not pelitila.valkoisenSiirto and pelaaja2)
@@ -79,7 +79,7 @@ def main():
 
         #Ai siirto-etsijä logiikka
         if not peliLoppu and not ihmisenVuoro:
-            AISiirto = ShakkiAI.etsiParasSiirtoMinMax(pelitila, laillisetSiirrot)
+            AISiirto = ShakkiAI.etsiParasSiirto(pelitila, laillisetSiirrot)
             if AISiirto is None:
                 AISiirto = ShakkiAI.etsiRandomSiirto(laillisetSiirrot)
             pelitila.teeSiirto(AISiirto)
