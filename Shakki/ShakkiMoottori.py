@@ -21,6 +21,7 @@ class PeliTila():
         self.shakkimatti = False
         self.pattitilanne = False
         self.enpassantMahdollinen = ()
+        self.enPassantMahdollinenLoki = [self.enpassantMahdollinen]
         self.nykyinenCastleOikeus = CastleOikeudet(True, True, True, True)
         self.castleOikeusLoki = [CastleOikeudet(self.nykyinenCastleOikeus.wks, self.nykyinenCastleOikeus.bks,
                                                 self.nykyinenCastleOikeus.wqs, self.nykyinenCastleOikeus.bqs)]
@@ -61,6 +62,7 @@ class PeliTila():
         self.paivitaCastleOikeudet(siirto)
         self.castleOikeusLoki.append(CastleOikeudet(self.nykyinenCastleOikeus.wks, self.nykyinenCastleOikeus.bks,
                                                 self.nykyinenCastleOikeus.wqs, self.nykyinenCastleOikeus.bqs))
+        self.enPassantMahdollinenLoki.append(self.enpassantMahdollinen)
     def kumoaSiirto(self):
         if len(self.siirtoLokikirja) != 0:
             siirto = self.siirtoLokikirja.pop()
@@ -72,13 +74,13 @@ class PeliTila():
                 self.valkoisenKuninkaanSijainti = (siirto.aloitusRivi, siirto.aloitusLinja)
             elif siirto.siirrettyNappula == 'bK':
                 self.mustanKuninkaanSijainti = (siirto.aloitusRivi, siirto.aloitusLinja)
+            #kumoa Enpassant
             if siirto.onEnpassantSiirto:
                 self.lauta[siirto.lopetusRivi][siirto.lopetusLinja] = '--'  # jätä lopetus ruutu tyhjäksi
                 self.lauta[siirto.aloitusRivi][siirto.lopetusLinja] = siirto.syotyNappula
-                self.enpassantMahdollinen = (siirto.lopetusRivi, siirto.lopetusLinja)
-                # peruuta kahden ruudun sotilas siirto
-            if siirto.siirrettyNappula[1] == 'p' and abs(siirto.aloitusRivi - siirto.lopetusRivi) == 2:
-                self.enpassantMahdollinen = ()
+            self.enPassantMahdollinenLoki.pop()
+            self.enpassantMahdollinen = self.enPassantMahdollinenLoki[-1]
+
 
             #Peruuta Castlin oikeudet
             self.castleOikeusLoki.pop() #Poistamme uudet castle oikeudet siirrosta minkä teemme
@@ -336,6 +338,7 @@ class Siirto():
             self.syotyNappula = 'wp' if self.siirrettyNappula == 'bp' else 'bp'
         #Castle Siirto
         self.onCastleSiirto = onCastleSiirto
+        self.onSyoty = self.syotyNappula != '--'
 
         self.siirtoID = self.aloitusRivi * 1000 + self.aloitusLinja * 100 + self.lopetusRivi * 10 + self.lopetusLinja
 
@@ -351,3 +354,25 @@ class Siirto():
 
     def haeRiviJaSarake(self, rivi, linja):
         return self.linjoistaSarakkeiksi[linja] + self.arvotRiveiksi[rivi]
+
+    def __str__(self):
+        #Castle siirto
+        if self.onCastleSiirto:
+            return "O-O" if self.lopetusLinja == 6 else "O-O-O"
+
+        lopetusRuutu = self.haeRiviJaSarake(self.lopetusRivi, self.lopetusLinja)
+
+        if self.siirrettyNappula[1] == 'p':
+            if self.onSyoty:
+                return self.linjoistaSarakkeiksi[self.aloitusLinja] + "x" + lopetusRuutu
+            else:
+                return lopetusRuutu
+
+        siirtoMerkkijono = self.siirrettyNappula[1]
+        if self.onSyoty:
+            siirtoMerkkijono += 'x'
+        return siirtoMerkkijono + lopetusRuutu
+
+
+
+

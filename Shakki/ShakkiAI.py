@@ -12,55 +12,31 @@ def etsiRandomSiirto(laillisetSiirrot):
 def etsiParasSiirto(pelitila, laillisetSiirrot):
     global seuraavaSiirto
     seuraavaSiirto = None
-    etsiSiirtoNegaMax(pelitila, laillisetSiirrot, SYVYYS,1 if pelitila.valkoisenSiirto else -1)
+    random.shuffle(laillisetSiirrot)
+    etsiSiirtoNegaMaxAlphaBeta(pelitila, laillisetSiirrot, SYVYYS, -SHAKKIMATTI, SHAKKIMATTI, 1 if pelitila.valkoisenSiirto else -1)
     return seuraavaSiirto
 
-def etsiSiirtoMinMax(pelitila, laillisetSiirrot, syvyys, valkoisenVuoro):
-    global seuraavaSiirto
-    if syvyys == 0:
-        return pisteytaResurssit(pelitila.lauta)
 
-    if valkoisenVuoro:
-        maksimiPisteet = -SHAKKIMATTI
-        for siirto in laillisetSiirrot:
-            pelitila.teeSiirto(siirto)
-            seuraavaSiirto = pelitila.haeLaillisetSiirrot()
-            pisteet = etsiSiirtoMinMax(pelitila, seuraavaSiirto, syvyys -1, False)
-            if pisteet > maksimiPisteet:
-                maksimiPisteet = pisteet
-                if syvyys == SYVYYS:
-                    seuraavaSiirto = siirto
-            pelitila.kumoaSiirto()
-        return maksimiPisteet
-
-    else:
-        minimiPisteet = SHAKKIMATTI
-        for siirto in laillisetSiirrot:
-            pelitila.teeSiirto(siirto)
-            seuraavaSiirto = pelitila.haeLaillisetSiirrot()
-            pisteet = etsiSiirtoMinMax(pelitila, seuraavaSiirto, syvyys - 1, True)
-            if pisteet > minimiPisteet:
-                minimiPisteet = pisteet
-                if syvyys == SYVYYS:
-                    seuraavaSiirto = siirto
-            pelitila.kumoaSiirto()
-        return minimiPisteet
-
-def etsiSiirtoNegaMax(pelitila, laillisetSiirrot, syvyys, siirtoKerroin):
+def etsiSiirtoNegaMaxAlphaBeta(pelitila, laillisetSiirrot, syvyys, alpha, beta, siirtoKerroin):
     global seuraavaSiirto
     if syvyys == 0:
         return siirtoKerroin * pisteTaulu(pelitila)
 
+    # siirto järjestäminen -
     maksimiPisteet = -SHAKKIMATTI
     for siirto in laillisetSiirrot:
         pelitila.teeSiirto(siirto)
         seuraavaSiirto = pelitila.haeLaillisetSiirrot()
-        pisteet = -etsiSiirtoNegaMax(pelitila, seuraavaSiirto, syvyys -1, -siirtoKerroin)
+        pisteet = -etsiSiirtoNegaMaxAlphaBeta(pelitila, seuraavaSiirto, syvyys - 1, -beta, -alpha, -siirtoKerroin)
         if pisteet > maksimiPisteet:
             maksimiPisteet = pisteet
             if syvyys == SYVYYS:
                 seuraavaSiirto = siirto
         pelitila.kumoaSiirto()
+        if maksimiPisteet > alpha: #karsiminen tässä
+            alpha = maksimiPisteet
+        if alpha >= beta:
+            break
     return maksimiPisteet
 
 #Postiiviset pisteet ovat hyvä valkoiselle, negatiiviset hyvä mustalle
