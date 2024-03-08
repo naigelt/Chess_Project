@@ -1,5 +1,5 @@
 import pygame as p
-import ShakkiMoottori
+import ShakkiMoottori, ShakkiAI
 
 WIDTH = HEIGHT = 512
 DIMENSION = 8
@@ -28,14 +28,17 @@ def main():
     valittuRuutu = () #Pitää kirjaa mihin pelaaja clikkasi viimeksi. tuple (r, l)
     pelaajaKlikit = [] #Pitää kirjaa pelaajan klikeistä[(4,4), (3,4)]
     peliLoppu = False
+    pelaaja1 = True #Jos ihminen pelaa valkoista, tämä on True. Jos Ai pelaa valkoista niin tämä on False
+    pelaaja2 = False # Sama mutta mustalle
     while kaynnissa:
+        ihmisenVuoro = (pelitila.valkoisenSiirto and pelaaja1) or (not pelitila.valkoisenSiirto and pelaaja2)
         for e in p.event.get():
             if e.type == p.QUIT:
                 kaynnissa = False
 
             #Hiiri handler
             elif e.type == p.MOUSEBUTTONDOWN:
-                if not peliLoppu:
+                if not peliLoppu and ihmisenVuoro:
                     sijainti = p.mouse.get_pos()
                     l = sijainti[0]//SQ_SIZE
                     r = sijainti[1]//SQ_SIZE
@@ -64,6 +67,7 @@ def main():
                     pelitila.kumoaSiirto()
                     siirtoTehty = True
                     animoi = False
+                    peliLoppu = False
                 if e.key == p.K_r: #Resetoi pelin kun R näppäintä painaa
                     pelitila = ShakkiMoottori.PeliTila()
                     laillisetSiirrot = pelitila.haeLaillisetSiirrot()
@@ -71,7 +75,16 @@ def main():
                     pelaajaKlikit = []
                     siirtoTehty = False
                     animoi = False
+                    peliLoppu = False
 
+        #Ai siirto-etsijä logiikka
+        if not peliLoppu and not ihmisenVuoro:
+            AISiirto = ShakkiAI.etsiParasSiirtoMinMax(pelitila, laillisetSiirrot)
+            if AISiirto is None:
+                AISiirto = ShakkiAI.etsiRandomSiirto(laillisetSiirrot)
+            pelitila.teeSiirto(AISiirto)
+            siirtoTehty = True
+            animoi = True
 
 
         if siirtoTehty:

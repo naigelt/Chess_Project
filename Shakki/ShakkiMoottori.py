@@ -92,6 +92,9 @@ class PeliTila():
                     self.lauta[siirto.lopetusRivi][siirto.lopetusLinja-2] = self.lauta[siirto.lopetusRivi][siirto.lopetusLinja+1]
                     self.lauta[siirto.lopetusRivi][siirto.lopetusLinja + 1] = '--'
 
+            self.shakkimatti = False
+            self.pattitilanne = False
+
     def paivitaCastleOikeudet(self, siirto):
         if siirto.siirrettyNappula == 'wK':
             self.nykyinenCastleOikeus.wks = False
