@@ -1,205 +1,278 @@
 import pygame as p
 import ShakkiMoottori, ShakkiAI
+import sys
+from multiprocessing import Process, Queue
 
 LAUTA_LEVEYS = LAUTA_KORKEUS = 512
 SIIRTO_LOKI_PANEELI_LEVEYS = 250
 SIIRTO_LOKI_PANEELI_KORKEUS = LAUTA_KORKEUS
-DIMENSION = 8
-SQ_SIZE = LAUTA_KORKEUS // DIMENSION
+ULOTTUVUUS = 8
+RUUTU_KOKO = LAUTA_KORKEUS // ULOTTUVUUS
 MAX_FPS = 15
-IMAGES = {}
+KUVAT = {}
+
 
 def lataaKuvat():
-    nappulat = ["wp", "wR", "wN", "wB", "wK", "wQ", "bp", "bR", "bN", "bB", "bK", "bQ"]
-    for nappula in nappulat:
-        IMAGES[nappula] = p.transform.scale(p.image.load("images/" + nappula + ".png"),(SQ_SIZE,SQ_SIZE))
+    """
+    Initialize a global directory of images.
+    This will be called exactly once in the main.
+    """
+    pieces = ['wp', 'wR', 'wN', 'wB', 'wK', 'wQ', 'bp', 'bR', 'bN', 'bB', 'bK', 'bQ']
+    for piece in pieces:
+        KUVAT[piece] = p.transform.scale(p.image.load("images/" + piece + ".png"), (RUUTU_KOKO, RUUTU_KOKO))
 
 
 def main():
+    """
+    The main driver for our code.
+    This will handle user input and updating the graphics.
+    """
     p.init()
-    screen = p.display.set_mode((LAUTA_LEVEYS + SIIRTO_LOKI_PANEELI_LEVEYS, LAUTA_KORKEUS))
+    naytto = p.display.set_mode((LAUTA_LEVEYS + SIIRTO_LOKI_PANEELI_LEVEYS, LAUTA_KORKEUS))
     kello = p.time.Clock()
-    screen.fill(p.Color("white"))
-    siirtoLokiFontti = p.font.SysFont("Arial", 14, False, False)
+    naytto.fill(p.Color("white"))
     pelitila = ShakkiMoottori.PeliTila()
     laillisetSiirrot = pelitila.haeLaillisetSiirrot()
-    siirtoTehty = False #Lippu muuttuja, jota käytetään kun siirto tehdään
-    animoi = False # Lippu muuttuja
-
-    lataaKuvat()
+    siirtoTehty = False  # flag variable for when a siirto is made
+    animoi = False  # flag variable for when we should animoi a siirto
+    lataaKuvat()  # do this only once before while loop
     kaynnissa = True
-    valittuRuutu = () #Pitää kirjaa mihin pelaaja clikkasi viimeksi. tuple (r, l)
-    pelaajaKlikit = [] #Pitää kirjaa pelaajan klikeistä[(4,4), (3,4)]
+    ruutuValittu = ()  # no square is selected initially, this will keep track of the last click of the user (tuple(rivi,linja))
+    pelaajaKlikit = []  # this will keep track of player clicks (two tuples)
     peliLoppu = False
-    pelaaja1 = True #Jos ihminen pelaa valkoista, tämä on True. Jos Ai pelaa valkoista niin tämä on False
-    pelaaja2 = False # Sama mutta mustalle
+    aiAjattelee = False
+    siirtoKumottu = False
+    siirtoHakijaProsessi = None
+    siirtoLokiFontti = p.font.SysFont("Arial", 14, False, False)
+    pelaaja1 = False  # if a human is playing white, then this will be True, else False
+    pelaaja2 = True  # if a hyman is playing white, then this will be True, else False
+
     while kaynnissa:
-        ihmisenVuoro = (pelitila.valkoisenSiirto and pelaaja1) or (not pelitila.valkoisenSiirto and pelaaja2)
+        ihmisenVuoro = (pelitila.valkoiseSiirto and pelaaja1) or (not pelitila.valkoiseSiirto and pelaaja2)
         for e in p.event.get():
             if e.type == p.QUIT:
-                kaynnissa = False
-
-            #Hiiri handler
+                p.quit()
+                sys.exit()
+            # mouse handler
             elif e.type == p.MOUSEBUTTONDOWN:
-                if not peliLoppu and ihmisenVuoro:
-                    sijainti = p.mouse.get_pos()
-                    l = sijainti[0]//SQ_SIZE
-                    r = sijainti[1]//SQ_SIZE
-                    if valittuRuutu == (r, l) or l >= 8: #käyttäjä clikkasi samaa ruutua kahdesti
-                        valittuRuutu = () #poistaa valinnan
-                        pelaajaKlikit = []
+                if not peliLoppu:
+                    sijainti = p.mouse.get_pos()  # (x, y) sijainti of the mouse
+                    linja = sijainti[0] // RUUTU_KOKO
+                    rivi = sijainti[1] // RUUTU_KOKO
+                    if ruutuValittu == (rivi, linja) or linja >= 8:  # user clicked the same square twice
+                        ruutuValittu = ()  # deselect
+                        pelaajaKlikit = []  # clear clicks
                     else:
-                        valittuRuutu = (r, l)
-                        pelaajaKlikit.append(valittuRuutu) #append molemille 1. ja 2. klikille.
-                    if len(pelaajaKlikit) == 2: #toisen klikin jälkeen.
+                        ruutuValittu = (rivi, linja)
+                        pelaajaKlikit.append(ruutuValittu)  # append for both 1st and 2nd click
+                    if len(pelaajaKlikit) == 2 and ihmisenVuoro:  # after 2nd click
                         siirto = ShakkiMoottori.Siirto(pelaajaKlikit[0], pelaajaKlikit[1], pelitila.lauta)
-                        print(siirto.haeShakkiNotaatio())
                         for i in range(len(laillisetSiirrot)):
                             if siirto == laillisetSiirrot[i]:
                                 pelitila.teeSiirto(laillisetSiirrot[i])
                                 siirtoTehty = True
                                 animoi = True
-                                valittuRuutu = ()  # Resettaa klikit
+                                ruutuValittu = ()  # reset user clicks
                                 pelaajaKlikit = []
                         if not siirtoTehty:
-                            pelaajaKlikit = [valittuRuutu]
+                            pelaajaKlikit = [ruutuValittu]
 
-            #Näppäin Handler
+            # key handler
             elif e.type == p.KEYDOWN:
-                if e.key == p.K_z:
+                if e.key == p.K_z:  # undo when 'z' is pressed
                     pelitila.kumoaSiirto()
                     siirtoTehty = True
                     animoi = False
                     peliLoppu = False
-                if e.key == p.K_r: #Resetoi pelin kun R näppäintä painaa
+                    if aiAjattelee:
+                        siirtoHakijaProsessi.terminate()
+                        aiAjattelee = False
+                    siirtoKumottu = True
+                if e.key == p.K_r:  # reset the game when 'r' is pressed
                     pelitila = ShakkiMoottori.PeliTila()
                     laillisetSiirrot = pelitila.haeLaillisetSiirrot()
-                    valittuRuutu = ()
+                    ruutuValittu = ()
                     pelaajaKlikit = []
                     siirtoTehty = False
                     animoi = False
                     peliLoppu = False
+                    if aiAjattelee:
+                        siirtoHakijaProsessi.terminate()
+                        aiAjattelee = False
+                    siirtoKumottu = True
 
-        #Ai siirto-etsijä logiikka
-        if not peliLoppu and not ihmisenVuoro:
-            AISiirto = ShakkiAI.etsiParasSiirto(pelitila, laillisetSiirrot)
-            if AISiirto is None:
-                AISiirto = ShakkiAI.etsiRandomSiirto(laillisetSiirrot)
-            pelitila.teeSiirto(AISiirto)
-            siirtoTehty = True
-            animoi = True
+        # AI siirto finder
+        if not peliLoppu and not ihmisenVuoro and not siirtoKumottu:
+            if not aiAjattelee:
+                aiAjattelee = True
+                palaaJonoon = Queue()  # used to pass data between threads
+                siirtoHakijaProsessi = Process(target=ShakkiAI.haeParasSiirto, args=(pelitila, laillisetSiirrot, palaaJonoon))
+                siirtoHakijaProsessi.start()
 
+            if not siirtoHakijaProsessi.is_alive():
+                aiSiirto = palaaJonoon.get()
+                if aiSiirto is None:
+                    aiSiirto = ShakkiAI.etsiRandomSiirto(laillisetSiirrot)
+                pelitila.teeSiirto(aiSiirto)
+                siirtoTehty = True
+                animoi = True
+                aiAjattelee = False
 
         if siirtoTehty:
             if animoi:
-                animoiSiirto(pelitila.siirtoLokikirja[-1], screen, pelitila.lauta, kello)
+                animoiSiirto(pelitila.siirtoLoki[-1], naytto, pelitila.lauta, kello)
             laillisetSiirrot = pelitila.haeLaillisetSiirrot()
             siirtoTehty = False
             animoi = False
+            siirtoKumottu = False
 
-        piirraPeliTila(screen, pelitila, laillisetSiirrot, valittuRuutu, siirtoLokiFontti)
+        piirraPelitila(naytto, pelitila, laillisetSiirrot, ruutuValittu)
 
-        if pelitila.shakkimatti or pelitila.pattitilanne:
+        if not peliLoppu:
+            piirraSiirtoLoki(naytto, pelitila, siirtoLokiFontti)
+
+        if pelitila.shakkimatti:
             peliLoppu = True
-            piirraLopetusRuutuTeksti(screen, 'Pattitilanne' if pelitila.pattitilanne else 'Musta voitti Shakkimatilla' if pelitila.valkoisenSiirto else 'Valkoinen voitti Shakkimatilla')
+            if pelitila.valkoiseSiirto:
+                piirraLopetusTeksti(naytto, "Black wins by checkmate")
+            else:
+                piirraLopetusTeksti(naytto, "White wins by checkmate")
 
-
+        elif pelitila.pattitilanne:
+            peliLoppu = True
+            piirraLopetusTeksti(naytto, "Stalemate")
 
         kello.tick(MAX_FPS)
         p.display.flip()
 
-def piirraPeliTila(screen, pelitila, laillisetSiirrot, valittuRuutu, siirtoLokiFontti):
-    piirraLauta(screen)
-    korostaRuudut(screen, pelitila, laillisetSiirrot, valittuRuutu)
-    piirraNappulat(screen, pelitila.lauta)
-    piirraSiirtoLoki(screen, pelitila, siirtoLokiFontti)
 
-def piirraLauta(screen):
+def piirraPelitila(naytto, pelitila, laillisetSiirrot, ruutuValittu):
+    """
+    Responsible for all the graphics within current game state.
+    """
+    piirraLauta(naytto)  # draw squares on the board
+    korostaRuudut(naytto, pelitila, laillisetSiirrot, ruutuValittu)
+    piirraNappulat(naytto, pelitila.lauta)  # draw pieces on top of those squares
+
+
+def piirraLauta(naytto):
+    """
+    Draw the squares on the board.
+    The top left square is always light.
+    """
     global varit
-    varit = [p.Color("white"), p.Color("light blue")]
-    for rivi in range(DIMENSION):
-        for linja in range(DIMENSION):
-            vari = varit[((rivi + linja) % 2)]
-            p.draw.rect(screen, vari, p.Rect(linja*SQ_SIZE, rivi*SQ_SIZE, SQ_SIZE, SQ_SIZE))
+    varit = [p.Color("white"), p.Color("gray")]
+    for rivi in range(ULOTTUVUUS):
+        for linja in range(ULOTTUVUUS):
+            color = varit[((rivi + linja) % 2)]
+            p.draw.rect(naytto, color, p.Rect(linja * RUUTU_KOKO, rivi * RUUTU_KOKO, RUUTU_KOKO, RUUTU_KOKO))
 
-def korostaRuudut(screen, pelitila, laillisetSiirrot, valittuRuutu):
-    if valittuRuutu != ():
-        r, l = valittuRuutu
-        if pelitila.lauta[r][l][0] == ('w' if pelitila.valkoisenSiirto else 'b'):
-            #Korostavalittu
-            s = p.Surface((SQ_SIZE, SQ_SIZE))
-            s.set_alpha(100)
-            s.fill(p.Color('purple'))
-            screen.blit(s, (l*SQ_SIZE, r*SQ_SIZE))
-            #Korosta siirrot siitä ruudusta
-            s.fill(p.Color('red'))
+
+def korostaRuudut(naytto, pelitila, laillisetSiirrot, ruutuValittu):
+    """
+    Highlight square selected and moves for piece selected.
+    """
+    if (len(pelitila.siirtoLoki)) > 0:
+        viimeSiirto = pelitila.siirtoLoki[-1]
+        s = p.Surface((RUUTU_KOKO, RUUTU_KOKO))
+        s.set_alpha(100)
+        s.fill(p.Color('green'))
+        naytto.blit(s, (viimeSiirto.lopetusLinja * RUUTU_KOKO, viimeSiirto.lopetusRivi * RUUTU_KOKO))
+    if ruutuValittu != ():
+        rivi, linja = ruutuValittu
+        if pelitila.lauta[rivi][linja][0] == (
+                'w' if pelitila.valkoiseSiirto else 'b'):  # square_selected is a piece that can be moved
+            # highlight selected square
+            s = p.Surface((RUUTU_KOKO, RUUTU_KOKO))
+            s.set_alpha(100)  # transparency value 0 -> transparent, 255 -> opaque
+            s.fill(p.Color('blue'))
+            naytto.blit(s, (linja * RUUTU_KOKO, rivi * RUUTU_KOKO))
+            # highlight moves from that square
+            s.fill(p.Color('yellow'))
             for siirto in laillisetSiirrot:
-                if siirto.aloitusRivi == r and siirto.aloitusLinja == l:
-                    screen.blit(s, (siirto.lopetusLinja*SQ_SIZE, siirto.lopetusRivi*SQ_SIZE))
+                if siirto.aloitusRivi == rivi and siirto.aloitusLinja == linja:
+                    naytto.blit(s, (siirto.lopetusLinja * RUUTU_KOKO, siirto.lopetusRivi * RUUTU_KOKO))
 
-def piirraNappulat(screen, lauta):
-    for rivi in range(DIMENSION):
-        for linja in range(DIMENSION):
+
+def piirraNappulat(naytto, lauta):
+    """
+    Draw the pieces on the board using the current game_state.board
+    """
+    for rivi in range(ULOTTUVUUS):
+        for linja in range(ULOTTUVUUS):
             nappula = lauta[rivi][linja]
             if nappula != "--":
-                screen.blit(IMAGES[nappula], p.Rect(linja*SQ_SIZE, rivi*SQ_SIZE, SQ_SIZE, SQ_SIZE))
+                naytto.blit(KUVAT[nappula], p.Rect(linja * RUUTU_KOKO, rivi * RUUTU_KOKO, RUUTU_KOKO, RUUTU_KOKO))
 
-def piirraSiirtoLoki(screen, pelitila, fontti):
+
+def piirraSiirtoLoki(naytto, pelitila, fontti):
+    """
+    Draws the move log.
+
+    """
     siirtoLokiNelio = p.Rect(LAUTA_LEVEYS, 0, SIIRTO_LOKI_PANEELI_LEVEYS, SIIRTO_LOKI_PANEELI_KORKEUS)
-    p.draw.rect(screen, p.Color('Black'), siirtoLokiNelio)
-    siirtoLoki = pelitila.siirtoLokikirja
+    p.draw.rect(naytto, p.Color('black'), siirtoLokiNelio)
+    siirtoLoki = pelitila.siirtoLoki
     siirtoTekstit = []
     for i in range(0, len(siirtoLoki), 2):
-        siirtoMerkkijono = str(i//2 + 1) + '. ' + str(siirtoLoki[i]) + " "
-        if i+1 < len(siirtoLoki):
-            siirtoMerkkijono += str(siirtoLoki[i+1]) + "  "
+        siirtoMerkkijono = str(i // 2 + 1) + '. ' + str(siirtoLoki[i]) + " "
+        if i + 1 < len(siirtoLoki):
+            siirtoMerkkijono += str(siirtoLoki[i + 1]) + "  "
         siirtoTekstit.append(siirtoMerkkijono)
 
     siirrotPerRivi = 3
     tayte = 5
-    riviVali = 2
+    rivivali = 2
     tekstiY = tayte
     for i in range(0, len(siirtoTekstit), siirrotPerRivi):
         teksti = ""
         for j in range(siirrotPerRivi):
             if i + j < len(siirtoTekstit):
-                teksti += siirtoTekstit[i+j]
-        tekstiObjekti = fontti.render(teksti, True, p.Color('White'))
-        tekstiPaikka = siirtoLokiNelio.move(tayte, tekstiY)
-        screen.blit(tekstiObjekti, tekstiPaikka)
-        tekstiY += tekstiObjekti.get_height() + riviVali
+                teksti += siirtoTekstit[i + j]
+
+        tekstiObjekti = fontti.render(teksti, True, p.Color('white'))
+        tekstiSijainti = siirtoLokiNelio.move(tayte, tekstiY)
+        naytto.blit(tekstiObjekti, tekstiSijainti)
+        tekstiY += tekstiObjekti.get_height() + rivivali
 
 
-def animoiSiirto(siirto, screen, lauta, kello):
+def piirraLopetusTeksti(naytto, teksti):
+    fontti = p.font.SysFont("Helvetica", 32, True, False)
+    tekstiObjekti = fontti.render(teksti, False, p.Color("gray"))
+    tekstiSijainti = p.Rect(0, 0, LAUTA_LEVEYS, LAUTA_KORKEUS).move(LAUTA_LEVEYS / 2 - tekstiObjekti.get_width() / 2,
+                                                                   LAUTA_KORKEUS / 2 - tekstiObjekti.get_height() / 2)
+    naytto.blit(tekstiObjekti, tekstiSijainti)
+    tekstiObjekti = fontti.render(teksti, False, p.Color('black'))
+    naytto.blit(tekstiObjekti, tekstiSijainti.move(2, 2))
+
+
+def animoiSiirto(siirto, naytto, lauta, kello):
+    """
+    Animating a move
+    """
     global varit
-    dR = siirto.lopetusRivi - siirto.aloitusRivi
-    dL = siirto.lopetusLinja - siirto.aloitusLinja
-    framesPerRuutu = 10
-    frameMaara = (abs(dR) + abs(dL)) * framesPerRuutu
-    for frame in range(frameMaara +1):
-        r, l = (siirto.aloitusRivi + dR*frame/frameMaara, siirto.aloitusLinja + dL*frame/frameMaara)
-        piirraLauta(screen)
-        piirraNappulat(screen, lauta)
+    sRivi = siirto.lopetusRivi - siirto.aloitusRivi
+    sLinja = siirto.lopetusLinja - siirto.aloitusLinja
+    framesPerNelio = 10  # frames to move one square
+    frameMaara = (abs(sRivi) + abs(sLinja)) * framesPerNelio
+    for frame in range(frameMaara + 1):
+        rivi, linja = (siirto.aloitusRivi + sRivi * frame / frameMaara, siirto.aloitusLinja + sLinja * frame / frameMaara)
+        piirraLauta(naytto)
+        piirraNappulat(naytto, lauta)
+        # erase the piece moved from its ending square
         vari = varit[(siirto.lopetusRivi + siirto.lopetusLinja) % 2]
-        lopetusRuutu = p.Rect(siirto.lopetusLinja*SQ_SIZE, siirto.lopetusRivi*SQ_SIZE, SQ_SIZE, SQ_SIZE)
-        p.draw.rect(screen, vari, lopetusRuutu)
+        lopetusRuutu = p.Rect(siirto.lopetusLinja * RUUTU_KOKO, siirto.lopetusRivi * RUUTU_KOKO, RUUTU_KOKO, RUUTU_KOKO)
+        p.draw.rect(naytto, vari, lopetusRuutu)
+        # draw captured piece onto rectangle
         if siirto.syotyNappula != '--':
             if siirto.onEnpassantSiirto:
-                enpassantRivi = siirto.lopetusRivi +1 if siirto.syotyNappula[0] == 'b' else siirto.lopetusRivi - 1
-                lopetusRuutu = p.Rect(siirto.lopetusLinja * SQ_SIZE, enpassantRivi * SQ_SIZE, SQ_SIZE, SQ_SIZE)
-            screen.blit(IMAGES[siirto.syotyNappula], lopetusRuutu)
-            #piirra liikkuva nappula
-        screen.blit(IMAGES[siirto.siirrettyNappula], p.Rect(l*SQ_SIZE, r*SQ_SIZE, SQ_SIZE, SQ_SIZE))
+                enpassantRivi = siirto.lopetusRivi + 1 if siirto.syotyNappula[0] == 'b' else siirto.lopetusRivi - 1
+                lopetusRuutu = p.Rect(siirto.lopetusLinja * RUUTU_KOKO, enpassantRivi * RUUTU_KOKO, RUUTU_KOKO, RUUTU_KOKO)
+            naytto.blit(KUVAT[siirto.syotyNappula], lopetusRuutu)
+        # draw moving piece
+        naytto.blit(KUVAT[siirto.siirrettyNappula], p.Rect(linja * RUUTU_KOKO, rivi * RUUTU_KOKO, RUUTU_KOKO, RUUTU_KOKO))
         p.display.flip()
         kello.tick(60)
-def piirraLopetusRuutuTeksti(screen, teksti):
-    fontti = p.font.SysFont('New York Times', 32, True, False)
-    tekstiObjekti = fontti.render(teksti, 0, p.Color('Gray'))
-    tekstiPaikka = p.Rect(0, 0, LAUTA_LEVEYS, LAUTA_KORKEUS).move(LAUTA_LEVEYS / 2 - tekstiObjekti.get_width() / 2, LAUTA_KORKEUS / 2 - tekstiObjekti.get_height() / 2)
-    screen.blit(tekstiObjekti, tekstiPaikka)
-    tekstiObjekti = fontti.render(teksti, 0, p.Color('Black'))
-    screen.blit(tekstiObjekti, tekstiPaikka.move(2, 2))
-
 
 
 if __name__ == "__main__":
