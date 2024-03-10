@@ -256,12 +256,6 @@ class GameState:
                             break
                     elif end_piece[0] == enemy_color:
                         enemy_type = end_piece[1]
-                        # 5 possibilities in this complex conditional
-                        # 1.) orthogonally away from king and piece is a rook
-                        # 2.) diagonally away from king and piece is a bishop
-                        # 3.) 1 square away diagonally from king and piece is a pawn
-                        # 4.) any direction and piece is a queen
-                        # 5.) any direction 1 square away and piece is a king
                         if (0 <= j <= 3 and enemy_type == "R") or (4 <= j <= 7 and enemy_type == "B") or (
                                 i == 1 and enemy_type == "p" and (
                                 (enemy_color == "w" and 6 <= j <= 7) or (enemy_color == "b" and 4 <= j <= 5))) or (
