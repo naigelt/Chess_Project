@@ -1,6 +1,6 @@
 import random
 
-pieceScore = {"K": 0, "Q": 9, "R": 5, "B": 3, "N": 3, "p": 1}
+pieceScore = {"K": 100, "Q": 9, "R": 5, "B": 3, "N": 3, "p": 1}
 
 knightScores = [[0.0, 0.1, 0.2, 0.2, 0.2, 0.2, 0.1, 0.0],
                 [0.1, 0.3, 0.5, 0.5, 0.5, 0.5, 0.3, 0.1],
@@ -60,7 +60,7 @@ piecePositionScores = {"wN": knightScores,
 
 CHECKMATE = 1000
 STALEMATE = 0
-DEPTH = 4
+DEPTH = 3
 
 
 def findBestMove(gameState, valid_moves, returnQueue):
@@ -76,7 +76,6 @@ def findMoveNegaMaxAlphaBeta(gameState, valid_moves, depth, alpha, beta, turnMul
     global nextMove
     if depth == 0:
         return turnMultiplier * scoreBoard(gameState)
-    # move ordering - implement later //TODO
     maxScore = -CHECKMATE
     for move in valid_moves:
         gameState.makeMove(move)

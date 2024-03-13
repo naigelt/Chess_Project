@@ -101,8 +101,7 @@ def main():
 
             if not moveFinderProcess.is_alive():
                 ai_move = return_queue.get()
-                if ai_move is None:
-                    ai_move = ChessAIGen.findRandomMove(validMoves)
+
                 gameState.makeMove(ai_move)
                 moveMade = True
                 animate = True
@@ -144,7 +143,7 @@ def drawGameState(screen, game_state, valid_moves, square_selected):
 
 def drawBoard(screen):
     global colors
-    colors = [p.Color("white"), p.Color("gray")]
+    colors = [p.Color("white"), p.Color("light blue")]
     for row in range(DIMENSION):
         for column in range(DIMENSION):
             color = colors[((row + column) % 2)]
@@ -156,7 +155,7 @@ def highlightSquares(screen, game_state, valid_moves, square_selected):
         last_move = game_state.moveLog[-1]
         s = p.Surface((SQUARE_SIZE, SQUARE_SIZE))
         s.set_alpha(100)
-        s.fill(p.Color('green'))
+        s.fill(p.Color('red'))
         screen.blit(s, (last_move.endCol * SQUARE_SIZE, last_move.endRow * SQUARE_SIZE))
     if square_selected != ():
         row, col = square_selected
@@ -165,7 +164,7 @@ def highlightSquares(screen, game_state, valid_moves, square_selected):
             # highlight selected square
             s = p.Surface((SQUARE_SIZE, SQUARE_SIZE))
             s.set_alpha(100)  # transparency value 0 -> transparent, 255 -> opaque
-            s.fill(p.Color('blue'))
+            s.fill(p.Color('red'))
             screen.blit(s, (col * SQUARE_SIZE, row * SQUARE_SIZE))
             # highlight moves from that square
             s.fill(p.Color('yellow'))
