@@ -41,10 +41,6 @@ class GameState:
 
         # pawn promotion
         if move.isPawnPromotion:
-            # if not is_AI:
-            #    promoted_piece = input("Promote to Q, R, B, or N:") #take this to UI later
-            #    self.board[move.end_row][move.end_col] = move.piece_moved[0] + promoted_piece
-            # else:
             self.board[move.endRow][move.endCol] = move.pieceMoved[0] + "Q"
 
         # enpassant move
@@ -175,7 +171,7 @@ class GameState:
                             break
                 # get rid of any moves that don't block check or move king
                 for i in range(len(moves) - 1, -1, -1):  # iterate through the list backwards when removing elements
-                    if moves[i].pieceMoved[1] != "K":  # move doesn't move king so it must block or capture
+                    if moves[i].pieceMoved[1] != "K":  # move doesn't move king, so it must block or capture
                         if not (moves[i].endRow,
                                 moves[i].endCol) in valid_squares:  # move doesn't block or capture piece
                             moves.remove(moves[i])
@@ -417,32 +413,37 @@ class GameState:
     def getBishopMoves(self, row, col, moves):
         piece_pinned = False
         pin_direction = ()
+
+        # Check if the bishop is pinned and its pin direction
         for i in range(len(self.pins) - 1, -1, -1):
             if self.pins[i][0] == row and self.pins[i][1] == col:
                 piece_pinned = True
                 pin_direction = (self.pins[i][2], self.pins[i][3])
-                self.pins.remove(self.pins[i])
+                self.pins.pop(i)
                 break
 
-        directions = ((-1, -1), (-1, 1), (1, 1), (1, -1))  # diagonals: up/left up/right down/right down/left
+        directions = ((-1, -1), (-1, 1), (1, 1), (1, -1))  # diagonals: up/left, up/right, down/right, down/left
         enemy_color = "b" if self.whiteToMove else "w"
+
         for direction in directions:
+            d_row, d_col = direction
             for i in range(1, 8):
-                end_row = row + direction[0] * i
-                end_col = col + direction[1] * i
-                if 0 <= end_row <= 7 and 0 <= end_col <= 7:  # check if the move is on board
-                    if not piece_pinned or pin_direction == direction or pin_direction == (
-                            -direction[0], -direction[1]):
-                        end_piece = self.board[end_row][end_col]
-                        if end_piece == "--":  # empty space is valid
-                            moves.append(Move((row, col), (end_row, end_col), self.board))
-                        elif end_piece[0] == enemy_color:  # capture enemy piece
-                            moves.append(Move((row, col), (end_row, end_col), self.board))
-                            break
-                        else:  # friendly piece
-                            break
-                else:  # off board
+                end_row = row + d_row * i
+                end_col = col + d_col * i
+
+                if not (0 <= end_row <= 7 and 0 <= end_col <= 7):  # Check if the move is on board
                     break
+
+                if not piece_pinned or pin_direction == direction or pin_direction == (-d_row, -d_col):
+                    end_piece = self.board[end_row][end_col]
+
+                    if end_piece == "--":  # Empty space is valid
+                        moves.append(Move((row, col), (end_row, end_col), self.board))
+                    elif end_piece[0] == enemy_color:  # Capture enemy piece
+                        moves.append(Move((row, col), (end_row, end_col), self.board))
+                        break
+                    else:  # Friendly piece
+                        break
 
     def getQueenMoves(self, row, col, moves):
         self.getBishopMoves(row, col, moves)

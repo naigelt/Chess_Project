@@ -101,7 +101,8 @@ def main():
 
             if not moveFinderProcess.is_alive():
                 ai_move = return_queue.get()
-
+                if ai_move is None:
+                    ai_move = ChessAIGen.findRandomMove(validMoves)
                 gameState.makeMove(ai_move)
                 moveMade = True
                 animate = True
